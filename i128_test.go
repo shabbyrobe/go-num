@@ -49,6 +49,24 @@ func randI128(scratch []byte) I128 {
 	return i
 }
 
+func TestI128Abs(t *testing.T) {
+	for idx, tc := range []struct {
+		a, b I128
+	}{
+		{i64(0), i64(0)},
+		{i64(1), i64(1)},
+		{I128{lo: maxUint64}, I128{lo: maxUint64}},
+		{i64(-1), i64(1)},
+		{I128{hi: maxUint64}, I128{hi: 1}},
+	} {
+		t.Run(fmt.Sprintf("%d/|%s|=%s", idx, tc.a, tc.b), func(t *testing.T) {
+			tt := assert.WrapTB(t)
+			result := tc.a.Abs()
+			tt.MustEqual(tc.b, result)
+		})
+	}
+}
+
 func TestI128Add(t *testing.T) {
 	for idx, tc := range []struct {
 		a, b, c I128

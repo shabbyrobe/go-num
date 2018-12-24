@@ -281,7 +281,6 @@ func (i I128) Sub(n I128) (out I128) {
 	if i.lo < out.lo {
 		out.hi--
 	}
-	// fmt.Printf("(%#016x %#016x) (%#016x %#016x) (%#016x %#016x)\n", i.hi, i.lo, n.hi, n.lo, out.hi, out.lo)
 	return out
 }
 
@@ -311,6 +310,9 @@ func (i I128) Abs() I128 {
 	if i.hi&signBit != 0 {
 		i.hi = ^i.hi
 		i.lo = ^(i.lo - 1)
+		if i.lo == 0 { // handle overflow
+			i.hi++
+		}
 	}
 	return i
 }
