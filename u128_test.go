@@ -224,7 +224,9 @@ func TestU128FromFloat64Random(t *testing.T) {
 		rbf := num.AsBigFloat()
 
 		rf, _ := rbf.Float64()
-		rn := U128FromFloat64(rf)
+		rn, inRange := U128FromFloat64(rf)
+		tt.MustAssert(inRange)
+
 		diff := DifferenceU128(num, rn)
 
 		ibig, diffBig := num.AsBigFloat(), diff.AsBigFloat()
@@ -235,24 +237,28 @@ func TestU128FromFloat64Random(t *testing.T) {
 
 func TestU128FromFloat64(t *testing.T) {
 	for idx, tc := range []struct {
-		f   float64
-		out U128
+		f       float64
+		out     U128
+		inRange bool
 	}{
-		{math.NaN(), u128s("0")},
-		{math.Inf(0), MaxU128},
-		{math.Inf(-1), u128s("0")},
+		{math.NaN(), u128s("0"), false},
+		{math.Inf(0), MaxU128, false},
+		{math.Inf(-1), u128s("0"), false},
 	} {
 		t.Run(fmt.Sprintf("%d/fromfloat64(%f)==%s", idx, tc.f, tc.out), func(t *testing.T) {
 			tt := assert.WrapTB(t)
 
-			rn := U128FromFloat64(tc.f)
+			rn, inRange := U128FromFloat64(tc.f)
+			tt.MustEqual(tc.inRange, inRange)
+
 			diff := DifferenceU128(tc.out, rn)
 
 			ibig, diffBig := tc.out.AsBigFloat(), diff.AsBigFloat()
-			pct := new(big.Float).SetFloat64(0)
+			pct := new(big.Float)
 			if diff != zeroU128 {
 				pct.Quo(diffBig, ibig)
 			}
+			pct.Abs(pct)
 			tt.MustAssert(pct.Cmp(floatDiffLimit) < 0, "%s: %.20f > %.20f", tc.out, pct, floatDiffLimit)
 		})
 	}
@@ -547,7 +553,7 @@ func BenchmarkU128FromFloat(b *testing.B) {
 		b.Run(fmt.Sprintf("pow%d", int(pow)), func(b *testing.B) {
 			f := math.Pow(2, pow)
 			for i := 0; i < b.N; i++ {
-				BenchU128Result = U128FromFloat64(f)
+				BenchU128Result, _ = U128FromFloat64(f)
 			}
 		})
 	}

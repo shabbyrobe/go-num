@@ -78,21 +78,35 @@ func U128FromBigInt(v *big.Int) (out U128, accurate bool) {
 	}
 }
 
-func U128FromFloat32(f float32) U128 { return U128FromFloat64(float64(f)) }
+func U128FromFloat32(f float32) (out U128, inRange bool) {
+	return U128FromFloat64(float64(f))
+}
 
 // U128FromFloat64 creates a U128 from a float64. Any fractional portion
 // will be truncated towards zero. Floats outside the bounds of a U128
-// may be discarded or clamped. NaN is treated as 0.
-func U128FromFloat64(f float64) U128 {
-	if f <= 0 || f != f { // f != f == isnan
-		return U128{}
+// may be discarded or clamped.
+//
+// NaN is treated as 0, inRange is set to false. This may change to a panic
+// at some point.
+func U128FromFloat64(f float64) (out U128, inRange bool) {
+	if f == 0 {
+		return U128{}, true
+
+	} else if f < 0 {
+		return U128{}, false
+
 	} else if f <= maxUint64Float {
-		return U128{lo: uint64(f)}
+		return U128{lo: uint64(f)}, true
+
 	} else if f <= maxU128Float {
 		lo := mod(f, wrapUint64Float)
-		return U128{hi: uint64(f / wrapUint64Float), lo: uint64(lo)}
+		return U128{hi: uint64(f / wrapUint64Float), lo: uint64(lo)}, true
+
+	} else if f != f { // (f != f) == NaN
+		return U128{}, false
+
 	} else {
-		return MaxU128
+		return MaxU128, false
 	}
 }
 

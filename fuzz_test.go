@@ -685,7 +685,10 @@ func (f fuzzU128) FromFloat64() error {
 	u1 := accU128FromBigInt(b1)
 	bf1 := new(big.Float).SetInt(b1)
 	f1, _ := bf1.Float64()
-	r1 := U128FromFloat64(f1)
+	r1, inRange := U128FromFloat64(f1)
+	if !inRange {
+		panic("float out of range") // FIXME: error
+	}
 
 	diff := DifferenceU128(u1, r1)
 
@@ -887,7 +890,10 @@ func (f fuzzI128) FromFloat64() error {
 	i1 := accI128FromBigInt(b1)
 	bf1 := new(big.Float).SetInt(b1)
 	f1, _ := bf1.Float64()
-	r1 := I128FromFloat64(f1)
+	r1, inRange := I128FromFloat64(f1)
+	if !inRange {
+		panic("float out of range") // FIXME: error
+	}
 
 	diff := DifferenceI128(i1, r1)
 

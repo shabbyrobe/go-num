@@ -118,34 +118,45 @@ func I128FromBigInt(v *big.Int) (out I128, accurate bool) {
 	return out, accurate
 }
 
-func I128FromFloat32(f float32) I128 { return I128FromFloat64(float64(f)) }
+func I128FromFloat32(f float32) (out I128, inRange bool) {
+	return I128FromFloat64(float64(f))
+}
 
-func I128FromFloat64(f float64) (out I128) {
+// I128FromFloat64 creates a I128 from a float64. Any fractional portion
+// will be truncated towards zero. Floats outside the bounds of a I128
+// may be discarded or clamped.
+//
+// NaN is treated as 0, inRange is set to false. This may change to a panic
+// at some point.
+func I128FromFloat64(f float64) (out I128, inRange bool) {
 	const spillPos = float64(maxUint64) // (1<<64) - 1
 	const spillNeg = -float64(maxUint64) - 1
 
-	if f == 0 || f != f { // f != f == isnan
-		return out
+	if f == 0 {
+		return out, true
+
+	} else if f != f { // f != f == isnan
+		return out, false
 
 	} else if f < 0 {
 		if f >= spillNeg {
-			return I128{hi: maxUint64, lo: uint64(f)}
+			return I128{hi: maxUint64, lo: uint64(f)}, true
 		} else if f >= minI128Float {
 			f = -f
 			lo := mod(f, wrapUint64Float)
-			return I128{hi: ^uint64(f / wrapUint64Float), lo: ^uint64(lo)}
+			return I128{hi: ^uint64(f / wrapUint64Float), lo: ^uint64(lo)}, true
 		} else {
-			return MinI128
+			return MinI128, false
 		}
 
 	} else {
 		if f <= spillPos {
-			return I128{lo: uint64(f)}
+			return I128{lo: uint64(f)}, true
 		} else if f <= maxI128Float {
 			lo := mod(f, wrapUint64Float)
-			return I128{hi: uint64(f / wrapUint64Float), lo: uint64(lo)}
+			return I128{hi: uint64(f / wrapUint64Float), lo: uint64(lo)}, true
 		} else {
-			return MaxI128
+			return MaxI128, false
 		}
 	}
 }
@@ -381,10 +392,12 @@ func (i I128) LessOrEqualTo(n I128) bool {
 // Overflow should wrap around, as per the Go spec.
 //
 func (i I128) Mul(n I128) (dest I128) {
+	// Unfortunately, this is slightly too complex for Go 1.11 to inline.
+
 	// Adapted from Warren, Hacker's Delight, p. 132.
 	hl := i.hi*n.lo + i.lo*n.hi
 
-	dest.lo = i.lo * n.lo // lower 64 bits are easy
+	dest.lo = i.lo * n.lo // lower 64 bits
 
 	// break the multiplication into (x1 << 32 + x0)(y1 << 32 + y0)
 	// which is x1*y1 << 64 + (x0*y1 + x1*y0) << 32 + x0*y0

@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"math"
 	"math/big"
 	"math/rand"
 	"strings"
@@ -221,6 +222,34 @@ func TestI128FromBigInt(t *testing.T) {
 	}
 }
 
+func TestI128FromFloat64(t *testing.T) {
+	for idx, tc := range []struct {
+		f       float64
+		out     I128
+		inRange bool
+	}{
+		{math.NaN(), i128s("0"), false},
+		{math.Inf(0), MaxI128, false},
+		{math.Inf(-1), MinI128, false},
+	} {
+		t.Run(fmt.Sprintf("%d/fromfloat64(%f)==%s", idx, tc.f, tc.out), func(t *testing.T) {
+			tt := assert.WrapTB(t)
+
+			rn, inRange := I128FromFloat64(tc.f)
+			tt.MustEqual(tc.inRange, inRange)
+			diff := DifferenceI128(tc.out, rn)
+
+			ibig, diffBig := tc.out.AsBigFloat(), diff.AsBigFloat()
+			pct := new(big.Float)
+			if diff != zeroI128 {
+				pct.Quo(diffBig, ibig)
+			}
+			pct.Abs(pct)
+			tt.MustAssert(pct.Cmp(floatDiffLimit) < 0, "%s: %.20f > %.20f", tc.out, pct, floatDiffLimit)
+		})
+	}
+}
+
 func TestI128FromFloat64Random(t *testing.T) {
 	tt := assert.WrapTB(t)
 
@@ -235,7 +264,8 @@ func TestI128FromFloat64Random(t *testing.T) {
 		rbf := num.AsBigFloat()
 
 		rf, _ := rbf.Float64()
-		rn := I128FromFloat64(rf)
+		rn, acc := I128FromFloat64(rf)
+		tt.MustAssert(acc)
 		diff := DifferenceI128(num, rn)
 
 		ibig, diffBig := num.AsBigFloat(), diff.AsBigFloat()
