@@ -43,13 +43,6 @@ func randU128(scratch []byte) U128 {
 	return u
 }
 
-func TestU128FromSize(t *testing.T) {
-	tt := assert.WrapTB(t)
-	tt.MustEqual(U128From8(255), u128s("255"))
-	tt.MustEqual(U128From16(65535), u128s("65535"))
-	tt.MustEqual(U128From32(4294967295), u128s("4294967295"))
-}
-
 func TestU128AsBigInt(t *testing.T) {
 	for idx, tc := range []struct {
 		a U128
@@ -72,30 +65,6 @@ func TestU128AsBigInt(t *testing.T) {
 	}
 }
 
-func TestU128FromBigInt(t *testing.T) {
-	for idx, tc := range []struct {
-		a   *big.Int
-		b   U128
-		acc bool
-	}{
-		{bigU64(2), u64(2), true},
-		{bigs("18446744073709551616"), U128{hi: 0x1, lo: 0x0}, true},                // 1 << 64
-		{bigs("36893488147419103231"), U128{hi: 0x1, lo: 0xFFFFFFFFFFFFFFFF}, true}, // (1<<65) - 1
-		{bigs("28446744073709551615"), u128s("28446744073709551615"), true},
-		{bigs("170141183460469231731687303715884105727"), u128s("170141183460469231731687303715884105727"), true},
-		{bigs("0x FFFFFFFFFFFFFFFF FFFFFFFFFFFFFFFF"), U128{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}, true},
-		{bigs("0x 1 0000000000000000 00000000000000000"), MaxU128, false},
-		{bigs("0x FFFFFFFFFFFFFFFF FFFFFFFFFFFFFFFF FFFFFFFFFFFFFFFFF"), MaxU128, false},
-	} {
-		t.Run(fmt.Sprintf("%d/%s=%d,%d", idx, tc.a, tc.b.lo, tc.b.hi), func(t *testing.T) {
-			tt := assert.WrapTB(t)
-			v, acc := U128FromBigInt(tc.a)
-			tt.MustEqual(acc, tc.acc)
-			tt.MustAssert(tc.b.Cmp(v) == 0, "found: (%d, %d), expected (%d, %d)", v.hi, v.lo, tc.b.hi, tc.b.lo)
-		})
-	}
-}
-
 func TestU128Add(t *testing.T) {
 	for _, tc := range []struct {
 		a, b, c U128
@@ -109,166 +78,6 @@ func TestU128Add(t *testing.T) {
 		t.Run(fmt.Sprintf("%s+%s=%s", tc.a, tc.b, tc.c), func(t *testing.T) {
 			tt := assert.WrapTB(t)
 			tt.MustAssert(tc.c.Equal(tc.a.Add(tc.b)))
-		})
-	}
-}
-
-func TestU128Inc(t *testing.T) {
-	for _, tc := range []struct {
-		a, b U128
-	}{
-		{u64(1), u64(2)},
-		{u64(10), u64(11)},
-		{u64(maxUint64), u128s("18446744073709551616")},
-		{u64(maxUint64), u64(maxUint64).Add(u64(1))},
-		{MaxU128, u64(0)},
-	} {
-		t.Run(fmt.Sprintf("%s+1=%s", tc.a, tc.b), func(t *testing.T) {
-			tt := assert.WrapTB(t)
-			inc := tc.a.Inc()
-			tt.MustAssert(tc.b.Equal(inc), "%s + 1 != %s, found %s", tc.a, tc.b, inc)
-		})
-	}
-}
-
-func TestU128Dec(t *testing.T) {
-	for _, tc := range []struct {
-		a, b U128
-	}{
-		{u64(1), u64(0)},
-		{u64(10), u64(9)},
-		{u64(maxUint64), u128s("18446744073709551614")},
-		{u64(0), MaxU128},
-		{u64(maxUint64).Add(u64(1)), u64(maxUint64)},
-	} {
-		t.Run(fmt.Sprintf("%s-1=%s", tc.a, tc.b), func(t *testing.T) {
-			tt := assert.WrapTB(t)
-			dec := tc.a.Dec()
-			tt.MustAssert(tc.b.Equal(dec), "%s - 1 != %s, found %s", tc.a, tc.b, dec)
-		})
-	}
-}
-
-func TestU128Mul(t *testing.T) {
-	tt := assert.WrapTB(t)
-
-	u := U128From64(maxUint64)
-	v := u.Mul(U128From64(maxUint64))
-
-	var v1, v2 big.Int
-	v1.SetUint64(maxUint64)
-	v2.SetUint64(maxUint64)
-	tt.MustEqual(v.String(), v1.Mul(&v1, &v2).String())
-}
-
-func TestU128QuoRem(t *testing.T) {
-	for _, tc := range []struct {
-		u, by, q, r U128
-	}{
-		{u: u64(1), by: u64(2), q: u64(0), r: u64(1)},
-		{u: u64(10), by: u64(3), q: u64(3), r: u64(1)},
-
-		// These test cases were found by the fuzzer and exposed a bug in the 128-bit divisor
-		// branch of divmod128by128:
-		// 3289699161974853443944280720275488 / 9261249991223143249760: u128(48100516172305203) != big(355211139435)
-		// 51044189592896282646990963682604803 / 15356086376658915618524: u128(16290274193854465) != big(3324036368438)
-		// 555579170280843546177 / 21475569273528505412: u128(12) != big(25)
-	} {
-		t.Run(fmt.Sprintf("%s÷%s=%s,%s", tc.u, tc.by, tc.q, tc.r), func(t *testing.T) {
-			tt := assert.WrapTB(t)
-			q, r := tc.u.QuoRem(tc.by)
-			tt.MustEqual(tc.q.String(), q.String())
-			tt.MustEqual(tc.r.String(), r.String())
-
-			uBig := tc.u.AsBigInt()
-			byBig := tc.by.AsBigInt()
-
-			qBig, rBig := new(big.Int).Set(uBig), new(big.Int).Set(uBig)
-			qBig = qBig.Quo(qBig, byBig)
-			rBig = rBig.Rem(rBig, byBig)
-
-			tt.MustEqual(tc.q.String(), qBig.String())
-			tt.MustEqual(tc.r.String(), rBig.String())
-		})
-	}
-}
-
-func TestU128AsFloat(t *testing.T) {
-	for _, tc := range []struct {
-		a   U128
-		out string
-	}{
-		{u128s("2384067163226812360730"), "2384067163226812448768"},
-	} {
-		t.Run(fmt.Sprintf("float64(%s)=%s", tc.a, tc.out), func(t *testing.T) {
-			tt := assert.WrapTB(t)
-			tt.MustEqual(tc.out, cleanFloatStr(fmt.Sprintf("%f", tc.a.AsFloat64())))
-		})
-	}
-}
-
-func TestU128Rsh(t *testing.T) {
-	for _, tc := range []struct {
-		u  U128
-		by uint
-		r  U128
-	}{
-		{u: u64(2), by: 1, r: u64(1)},
-		{u: u64(1), by: 2, r: u64(0)},
-		{u: u128s("36893488147419103232"), by: 1, r: u128s("18446744073709551616")}, // (1<<65) - 1
-
-		// These test cases were found by the fuzzer:
-		{u: u128s("2465608830469196860151950841431"), by: 104, r: u64(0)},
-		{u: u128s("377509308958315595850564"), by: 58, r: u64(1309748)},
-		{u: u128s("8504691434450337657905929307096"), by: 74, r: u128s("450234615")},
-		{u: u128s("11595557904603123290159404941902684322"), by: 50, r: u128s("10298924295251697538375")},
-		{u: u128s("176613673099733424757078556036831904"), by: 75, r: u128s("4674925001596")},
-		{u: u128s("3731491383344351937489898072501894878"), by: 112, r: u64(718)},
-	} {
-		t.Run(fmt.Sprintf("%s>>%d=%s", tc.u, tc.by, tc.r), func(t *testing.T) {
-			tt := assert.WrapTB(t)
-
-			ub := tc.u.AsBigInt()
-			ub.Rsh(ub, tc.by).And(ub, maxBigU128)
-
-			ru := tc.u.Rsh(tc.by)
-			tt.MustEqual(tc.r.String(), ru.String(), "%s != %s; big: %s", tc.r, ru, ub)
-			tt.MustEqual(ub.String(), ru.String())
-		})
-	}
-}
-
-func TestU128Lsh(t *testing.T) {
-	for idx, tc := range []struct {
-		u  U128
-		by uint
-		r  U128
-	}{
-		{u: u64(2), by: 1, r: u64(4)},
-		{u: u64(1), by: 2, r: u64(4)},
-		{u: u128s("18446744073709551615"), by: 1, r: u128s("36893488147419103230")}, // (1<<64) - 1
-
-		// These cases were found by the fuzzer:
-		{u: u128s("5080864651895"), by: 57, r: u128s("732229764895815899943471677440")},
-		{u: u128s("63669103"), by: 85, r: u128s("2463079120908903847397520463364096")},
-		{u: u128s("0x1f1ecfd29cb51500c1a0699657"), by: 104, r: u128s("0x69965700000000000000000000000000")},
-		{u: u128s("0x4ff0d215cf8c26f26344"), by: 58, r: u128s("0xc348573e309bc98d1000000000000000")},
-		{u: u128s("0x6b5823decd7ef067f78e8cc3d8"), by: 74, r: u128s("0xc19fde3a330f60000000000000000000")},
-		{u: u128s("0x8b93924e1f7b6ac551d66f18ab520a2"), by: 50, r: u128s("0xdab154759bc62ad48288000000000000")},
-		{u: u128s("173760885"), by: 68, r: u128s("51285161209860430747989442560")},
-		{u: u128s("213"), by: 65, r: u128s("7858312975400268988416")},
-		{u: u128s("0x2203b9f3dbe0afa82d80d998641aa0"), by: 75, r: u128s("0x6c06ccc320d500000000000000000000")},
-		{u: u128s("40625"), by: 55, r: u128s("1463669878895411200000")},
-	} {
-		t.Run(fmt.Sprintf("%d/%s<<%d=%s", idx, tc.u, tc.by, tc.r), func(t *testing.T) {
-			tt := assert.WrapTB(t)
-
-			ub := tc.u.AsBigInt()
-			ub.Lsh(ub, tc.by).And(ub, maxBigU128)
-
-			ru := tc.u.Lsh(tc.by)
-			tt.MustEqual(tc.r.String(), ru.String(), "%s != %s; big: %s", tc.r, ru, ub)
-			tt.MustEqual(ub.String(), ru.String())
 		})
 	}
 }
@@ -295,7 +104,21 @@ func TestU128AsFloat64Random(t *testing.T) {
 	}
 }
 
-func TestU128AsFloat64(t *testing.T) {
+func TestU128AsFloat64Direct(t *testing.T) {
+	for _, tc := range []struct {
+		a   U128
+		out string
+	}{
+		{u128s("2384067163226812360730"), "2384067163226812448768"},
+	} {
+		t.Run(fmt.Sprintf("float64(%s)=%s", tc.a, tc.out), func(t *testing.T) {
+			tt := assert.WrapTB(t)
+			tt.MustEqual(tc.out, cleanFloatStr(fmt.Sprintf("%f", tc.a.AsFloat64())))
+		})
+	}
+}
+
+func TestU128AsFloat64Epsilon(t *testing.T) {
 	for _, tc := range []struct {
 		a U128
 	}{
@@ -313,6 +136,76 @@ func TestU128AsFloat64(t *testing.T) {
 			diff := new(big.Float).Sub(rf, bf)
 			pct := new(big.Float).Quo(diff, rf)
 			tt.MustAssert(pct.Cmp(floatDiffLimit) < 0, "%s: %.20f > %.20f", tc.a, diff, floatDiffLimit)
+		})
+	}
+}
+
+func TestU128Dec(t *testing.T) {
+	for _, tc := range []struct {
+		a, b U128
+	}{
+		{u64(1), u64(0)},
+		{u64(10), u64(9)},
+		{u64(maxUint64), u128s("18446744073709551614")},
+		{u64(0), MaxU128},
+		{u64(maxUint64).Add(u64(1)), u64(maxUint64)},
+	} {
+		t.Run(fmt.Sprintf("%s-1=%s", tc.a, tc.b), func(t *testing.T) {
+			tt := assert.WrapTB(t)
+			dec := tc.a.Dec()
+			tt.MustAssert(tc.b.Equal(dec), "%s - 1 != %s, found %s", tc.a, tc.b, dec)
+		})
+	}
+}
+
+func TestU128Format(t *testing.T) {
+	for idx, tc := range []struct {
+		v   U128
+		fmt string
+		out string
+	}{
+		{u64(1), "%d", "1"},
+		{u64(1), "%s", "1"},
+		{u64(1), "%v", "1"},
+		{MaxU128, "%d", "340282366920938463463374607431768211455"},
+		{MaxU128, "%#d", "340282366920938463463374607431768211455"},
+		{MaxU128, "%o", "3777777777777777777777777777777777777777777"},
+		{MaxU128, "%b", strings.Repeat("1", 128)},
+		{MaxU128, "%#o", "03777777777777777777777777777777777777777777"},
+		{MaxU128, "%#x", "0xffffffffffffffffffffffffffffffff"},
+		{MaxU128, "%#X", "0XFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"},
+
+		// No idea why big.Int doesn't support this:
+		// {MaxU128, "%#b", "0b" + strings.Repeat("1", 128)},
+	} {
+		t.Run(fmt.Sprintf("%d/%s/%s", idx, tc.fmt, tc.v), func(t *testing.T) {
+			tt := assert.WrapTB(t)
+			result := fmt.Sprintf(tc.fmt, tc.v)
+			tt.MustEqual(tc.out, result)
+		})
+	}
+}
+
+func TestU128FromBigInt(t *testing.T) {
+	for idx, tc := range []struct {
+		a   *big.Int
+		b   U128
+		acc bool
+	}{
+		{bigU64(2), u64(2), true},
+		{bigs("18446744073709551616"), U128{hi: 0x1, lo: 0x0}, true},                // 1 << 64
+		{bigs("36893488147419103231"), U128{hi: 0x1, lo: 0xFFFFFFFFFFFFFFFF}, true}, // (1<<65) - 1
+		{bigs("28446744073709551615"), u128s("28446744073709551615"), true},
+		{bigs("170141183460469231731687303715884105727"), u128s("170141183460469231731687303715884105727"), true},
+		{bigs("0x FFFFFFFFFFFFFFFF FFFFFFFFFFFFFFFF"), U128{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}, true},
+		{bigs("0x 1 0000000000000000 00000000000000000"), MaxU128, false},
+		{bigs("0x FFFFFFFFFFFFFFFF FFFFFFFFFFFFFFFF FFFFFFFFFFFFFFFFF"), MaxU128, false},
+	} {
+		t.Run(fmt.Sprintf("%d/%s=%d,%d", idx, tc.a, tc.b.lo, tc.b.hi), func(t *testing.T) {
+			tt := assert.WrapTB(t)
+			v, acc := U128FromBigInt(tc.a)
+			tt.MustEqual(acc, tc.acc)
+			tt.MustAssert(tc.b.Cmp(v) == 0, "found: (%d, %d), expected (%d, %d)", v.hi, v.lo, tc.b.hi, tc.b.lo)
 		})
 	}
 }
@@ -361,6 +254,141 @@ func TestU128FromFloat64(t *testing.T) {
 				pct.Quo(diffBig, ibig)
 			}
 			tt.MustAssert(pct.Cmp(floatDiffLimit) < 0, "%s: %.20f > %.20f", tc.out, pct, floatDiffLimit)
+		})
+	}
+}
+
+func TestU128FromSize(t *testing.T) {
+	tt := assert.WrapTB(t)
+	tt.MustEqual(U128From8(255), u128s("255"))
+	tt.MustEqual(U128From16(65535), u128s("65535"))
+	tt.MustEqual(U128From32(4294967295), u128s("4294967295"))
+}
+
+func TestU128Inc(t *testing.T) {
+	for _, tc := range []struct {
+		a, b U128
+	}{
+		{u64(1), u64(2)},
+		{u64(10), u64(11)},
+		{u64(maxUint64), u128s("18446744073709551616")},
+		{u64(maxUint64), u64(maxUint64).Add(u64(1))},
+		{MaxU128, u64(0)},
+	} {
+		t.Run(fmt.Sprintf("%s+1=%s", tc.a, tc.b), func(t *testing.T) {
+			tt := assert.WrapTB(t)
+			inc := tc.a.Inc()
+			tt.MustAssert(tc.b.Equal(inc), "%s + 1 != %s, found %s", tc.a, tc.b, inc)
+		})
+	}
+}
+
+func TestU128Lsh(t *testing.T) {
+	for idx, tc := range []struct {
+		u  U128
+		by uint
+		r  U128
+	}{
+		{u: u64(2), by: 1, r: u64(4)},
+		{u: u64(1), by: 2, r: u64(4)},
+		{u: u128s("18446744073709551615"), by: 1, r: u128s("36893488147419103230")}, // (1<<64) - 1
+
+		// These cases were found by the fuzzer:
+		{u: u128s("5080864651895"), by: 57, r: u128s("732229764895815899943471677440")},
+		{u: u128s("63669103"), by: 85, r: u128s("2463079120908903847397520463364096")},
+		{u: u128s("0x1f1ecfd29cb51500c1a0699657"), by: 104, r: u128s("0x69965700000000000000000000000000")},
+		{u: u128s("0x4ff0d215cf8c26f26344"), by: 58, r: u128s("0xc348573e309bc98d1000000000000000")},
+		{u: u128s("0x6b5823decd7ef067f78e8cc3d8"), by: 74, r: u128s("0xc19fde3a330f60000000000000000000")},
+		{u: u128s("0x8b93924e1f7b6ac551d66f18ab520a2"), by: 50, r: u128s("0xdab154759bc62ad48288000000000000")},
+		{u: u128s("173760885"), by: 68, r: u128s("51285161209860430747989442560")},
+		{u: u128s("213"), by: 65, r: u128s("7858312975400268988416")},
+		{u: u128s("0x2203b9f3dbe0afa82d80d998641aa0"), by: 75, r: u128s("0x6c06ccc320d500000000000000000000")},
+		{u: u128s("40625"), by: 55, r: u128s("1463669878895411200000")},
+	} {
+		t.Run(fmt.Sprintf("%d/%s<<%d=%s", idx, tc.u, tc.by, tc.r), func(t *testing.T) {
+			tt := assert.WrapTB(t)
+
+			ub := tc.u.AsBigInt()
+			ub.Lsh(ub, tc.by).And(ub, maxBigU128)
+
+			ru := tc.u.Lsh(tc.by)
+			tt.MustEqual(tc.r.String(), ru.String(), "%s != %s; big: %s", tc.r, ru, ub)
+			tt.MustEqual(ub.String(), ru.String())
+		})
+	}
+}
+
+func TestU128Mul(t *testing.T) {
+	tt := assert.WrapTB(t)
+
+	u := U128From64(maxUint64)
+	v := u.Mul(U128From64(maxUint64))
+
+	var v1, v2 big.Int
+	v1.SetUint64(maxUint64)
+	v2.SetUint64(maxUint64)
+	tt.MustEqual(v.String(), v1.Mul(&v1, &v2).String())
+}
+
+func TestU128QuoRem(t *testing.T) {
+	for _, tc := range []struct {
+		u, by, q, r U128
+	}{
+		{u: u64(1), by: u64(2), q: u64(0), r: u64(1)},
+		{u: u64(10), by: u64(3), q: u64(3), r: u64(1)},
+
+		// These test cases were found by the fuzzer and exposed a bug in the 128-bit divisor
+		// branch of divmod128by128:
+		// 3289699161974853443944280720275488 / 9261249991223143249760: u128(48100516172305203) != big(355211139435)
+		// 51044189592896282646990963682604803 / 15356086376658915618524: u128(16290274193854465) != big(3324036368438)
+		// 555579170280843546177 / 21475569273528505412: u128(12) != big(25)
+	} {
+		t.Run(fmt.Sprintf("%s÷%s=%s,%s", tc.u, tc.by, tc.q, tc.r), func(t *testing.T) {
+			tt := assert.WrapTB(t)
+			q, r := tc.u.QuoRem(tc.by)
+			tt.MustEqual(tc.q.String(), q.String())
+			tt.MustEqual(tc.r.String(), r.String())
+
+			uBig := tc.u.AsBigInt()
+			byBig := tc.by.AsBigInt()
+
+			qBig, rBig := new(big.Int).Set(uBig), new(big.Int).Set(uBig)
+			qBig = qBig.Quo(qBig, byBig)
+			rBig = rBig.Rem(rBig, byBig)
+
+			tt.MustEqual(tc.q.String(), qBig.String())
+			tt.MustEqual(tc.r.String(), rBig.String())
+		})
+	}
+}
+
+func TestU128Rsh(t *testing.T) {
+	for _, tc := range []struct {
+		u  U128
+		by uint
+		r  U128
+	}{
+		{u: u64(2), by: 1, r: u64(1)},
+		{u: u64(1), by: 2, r: u64(0)},
+		{u: u128s("36893488147419103232"), by: 1, r: u128s("18446744073709551616")}, // (1<<65) - 1
+
+		// These test cases were found by the fuzzer:
+		{u: u128s("2465608830469196860151950841431"), by: 104, r: u64(0)},
+		{u: u128s("377509308958315595850564"), by: 58, r: u64(1309748)},
+		{u: u128s("8504691434450337657905929307096"), by: 74, r: u128s("450234615")},
+		{u: u128s("11595557904603123290159404941902684322"), by: 50, r: u128s("10298924295251697538375")},
+		{u: u128s("176613673099733424757078556036831904"), by: 75, r: u128s("4674925001596")},
+		{u: u128s("3731491383344351937489898072501894878"), by: 112, r: u64(718)},
+	} {
+		t.Run(fmt.Sprintf("%s>>%d=%s", tc.u, tc.by, tc.r), func(t *testing.T) {
+			tt := assert.WrapTB(t)
+
+			ub := tc.u.AsBigInt()
+			ub.Rsh(ub, tc.by).And(ub, maxBigU128)
+
+			ru := tc.u.Rsh(tc.by)
+			tt.MustEqual(tc.r.String(), ru.String(), "%s != %s; big: %s", tc.r, ru, ub)
+			tt.MustEqual(ub.String(), ru.String())
 		})
 	}
 }
