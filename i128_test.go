@@ -58,6 +58,8 @@ func TestI128Abs(t *testing.T) {
 		{I128{lo: maxUint64}, I128{lo: maxUint64}},
 		{i64(-1), i64(1)},
 		{I128{hi: maxUint64}, I128{hi: 1}},
+
+		{MinI128, MinI128}, // Overflow
 	} {
 		t.Run(fmt.Sprintf("%d/|%s|=%s", idx, tc.a, tc.b), func(t *testing.T) {
 			tt := assert.WrapTB(t)
