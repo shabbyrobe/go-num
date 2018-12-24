@@ -18,8 +18,10 @@ func U128From16(v uint16) U128       { return U128{hi: 0, lo: uint64(v)} }
 func U128From8(v uint8) U128         { return U128{hi: 0, lo: uint64(v)} }
 
 // U128FromString creates a U128 from a string. Overflow truncates to MaxU128
-// and sets accurate to 'false'. Only decimal strings are supported.
+// and sets accurate to 'false'. Only decimal strings are currently supported.
 func U128FromString(s string) (out U128, accurate bool, err error) {
+	// This deliberately limits the scope of what we accept as input just in case
+	// we decide to hand-roll our own fast decimal-only parser:
 	b, ok := new(big.Int).SetString(s, 10)
 	if !ok {
 		return out, false, fmt.Errorf("num: u128 string %q invalid", s)

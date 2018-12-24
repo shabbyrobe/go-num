@@ -17,8 +17,10 @@ const (
 
 // I128FromString creates a I128 from a string. Overflow truncates to
 // MaxI128/MinI128 and sets accurate to 'false'. Only decimal strings are
-// supported.
+// currently supported.
 func I128FromString(s string) (out I128, accurate bool, err error) {
+	// This deliberately limits the scope of what we accept as input just in case
+	// we decide to hand-roll our own fast decimal-only parser:
 	b, ok := new(big.Int).SetString(s, 10)
 	if !ok {
 		return out, false, fmt.Errorf("num: i128 string %q invalid", s)
