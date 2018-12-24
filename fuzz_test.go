@@ -143,6 +143,41 @@ func (r *rando) Uintn(n int) uint {
 	return v
 }
 
+// samesies returns the number of arguments up to n - 1 that should be the same
+// for this request. Only used for randos that are 'x2', 'x3', etc.
+//
+// We need this because the chance of even two random 128-bit operands being
+// the same is unfathomable.
+func (r *rando) samesies(n int) int {
+	const samesiesChance = 0.03
+	if r.rng.Float64() < samesiesChance {
+		return r.rng.Intn(n)
+	}
+	return 0
+}
+
+func (r *rando) BigU128x2() (b1, b2 *big.Int) {
+	b1 = r.BigU128()
+	if r.samesies(2) > 0 {
+		b2 = new(big.Int).Set(b1)
+		r.operands = append(r.operands, b2)
+	} else {
+		b2 = r.BigU128()
+	}
+	return b1, b2
+}
+
+func (r *rando) BigI128x2() (b1, b2 *big.Int) {
+	b1 = r.BigI128()
+	if r.samesies(2) > 0 {
+		b2 = new(big.Int).Set(b1)
+		r.operands = append(r.operands, b2)
+	} else {
+		b2 = r.BigI128()
+	}
+	return b1, b2
+}
+
 func (r *rando) BigU128() *big.Int {
 	var v = new(big.Int)
 	bits := r.rng.Intn(129) - 1 // 128 bits, +1 for "0 bits"
@@ -481,7 +516,7 @@ func (f fuzzU128) Dec() error {
 }
 
 func (f fuzzU128) Add() error {
-	b1, b2 := f.source.BigU128(), f.source.BigU128()
+	b1, b2 := f.source.BigU128x2()
 	u1, u2 := accU128FromBigInt(b1), accU128FromBigInt(b2)
 	rb := new(big.Int).Add(b1, b2)
 	if rb.Cmp(wrapBigU128) >= 0 {
@@ -492,7 +527,7 @@ func (f fuzzU128) Add() error {
 }
 
 func (f fuzzU128) Sub() error {
-	b1, b2 := f.source.BigU128(), f.source.BigU128()
+	b1, b2 := f.source.BigU128x2()
 	u1, u2 := accU128FromBigInt(b1), accU128FromBigInt(b2)
 	rb := new(big.Int).Sub(b1, b2)
 	if rb.Cmp(big0) < 0 {
@@ -503,7 +538,7 @@ func (f fuzzU128) Sub() error {
 }
 
 func (f fuzzU128) Mul() error {
-	b1, b2 := f.source.BigU128(), f.source.BigU128()
+	b1, b2 := f.source.BigU128x2()
 	u1, u2 := accU128FromBigInt(b1), accU128FromBigInt(b2)
 	rb := new(big.Int).Mul(b1, b2)
 	for rb.Cmp(wrapBigU128) >= 0 {
@@ -514,7 +549,7 @@ func (f fuzzU128) Mul() error {
 }
 
 func (f fuzzU128) Quo() error {
-	b1, b2 := f.source.BigU128(), f.source.BigU128()
+	b1, b2 := f.source.BigU128x2()
 	u1, u2 := accU128FromBigInt(b1), accU128FromBigInt(b2)
 	if b2.Cmp(big0) == 0 {
 		return nil // Just skip this iteration, we know what happens!
@@ -525,7 +560,7 @@ func (f fuzzU128) Quo() error {
 }
 
 func (f fuzzU128) Rem() error {
-	b1, b2 := f.source.BigU128(), f.source.BigU128()
+	b1, b2 := f.source.BigU128x2()
 	u1, u2 := accU128FromBigInt(b1), accU128FromBigInt(b2)
 	if b2.Cmp(big0) == 0 {
 		return nil // Just skip this iteration, we know what happens!
@@ -536,7 +571,7 @@ func (f fuzzU128) Rem() error {
 }
 
 func (f fuzzU128) QuoRem() error {
-	b1, b2 := f.source.BigU128(), f.source.BigU128()
+	b1, b2 := f.source.BigU128x2()
 	u1, u2 := accU128FromBigInt(b1), accU128FromBigInt(b2)
 	if b2.Cmp(big0) == 0 {
 		return nil // Just skip this iteration, we know what happens!
@@ -555,43 +590,43 @@ func (f fuzzU128) QuoRem() error {
 }
 
 func (f fuzzU128) Cmp() error {
-	b1, b2 := f.source.BigU128(), f.source.BigU128()
+	b1, b2 := f.source.BigU128x2()
 	u1, u2 := accU128FromBigInt(b1), accU128FromBigInt(b2)
 	return checkEqualInt(b1.Cmp(b2), u1.Cmp(u2))
 }
 
 func (f fuzzU128) Equal() error {
-	b1, b2 := f.source.BigU128(), f.source.BigU128()
+	b1, b2 := f.source.BigU128x2()
 	u1, u2 := accU128FromBigInt(b1), accU128FromBigInt(b2)
 	return checkEqualBool(b1.Cmp(b2) == 0, u1.Equal(u2))
 }
 
 func (f fuzzU128) GreaterThan() error {
-	b1, b2 := f.source.BigU128(), f.source.BigU128()
+	b1, b2 := f.source.BigU128x2()
 	u1, u2 := accU128FromBigInt(b1), accU128FromBigInt(b2)
 	return checkEqualBool(b1.Cmp(b2) > 0, u1.GreaterThan(u2))
 }
 
 func (f fuzzU128) GreaterOrEqualTo() error {
-	b1, b2 := f.source.BigU128(), f.source.BigU128()
+	b1, b2 := f.source.BigU128x2()
 	u1, u2 := accU128FromBigInt(b1), accU128FromBigInt(b2)
 	return checkEqualBool(b1.Cmp(b2) >= 0, u1.GreaterOrEqualTo(u2))
 }
 
 func (f fuzzU128) LessThan() error {
-	b1, b2 := f.source.BigU128(), f.source.BigU128()
+	b1, b2 := f.source.BigU128x2()
 	u1, u2 := accU128FromBigInt(b1), accU128FromBigInt(b2)
 	return checkEqualBool(b1.Cmp(b2) < 0, u1.LessThan(u2))
 }
 
 func (f fuzzU128) LessOrEqualTo() error {
-	b1, b2 := f.source.BigU128(), f.source.BigU128()
+	b1, b2 := f.source.BigU128x2()
 	u1, u2 := accU128FromBigInt(b1), accU128FromBigInt(b2)
 	return checkEqualBool(b1.Cmp(b2) <= 0, u1.LessOrEqualTo(u2))
 }
 
 func (f fuzzU128) And() error {
-	b1, b2 := f.source.BigU128(), f.source.BigU128()
+	b1, b2 := f.source.BigU128x2()
 	u1, u2 := accU128FromBigInt(b1), accU128FromBigInt(b2)
 	rb := new(big.Int).And(b1, b2)
 	ru := u1.And(u2)
@@ -599,7 +634,7 @@ func (f fuzzU128) And() error {
 }
 
 func (f fuzzU128) Or() error {
-	b1, b2 := f.source.BigU128(), f.source.BigU128()
+	b1, b2 := f.source.BigU128x2()
 	u1, u2 := accU128FromBigInt(b1), accU128FromBigInt(b2)
 	rb := new(big.Int).Or(b1, b2)
 	ru := u1.Or(u2)
@@ -607,7 +642,7 @@ func (f fuzzU128) Or() error {
 }
 
 func (f fuzzU128) Xor() error {
-	b1, b2 := f.source.BigU128(), f.source.BigU128()
+	b1, b2 := f.source.BigU128x2()
 	u1, u2 := accU128FromBigInt(b1), accU128FromBigInt(b2)
 	rb := new(big.Int).Xor(b1, b2)
 	ru := u1.Xor(u2)
@@ -714,7 +749,7 @@ func (f fuzzI128) Dec() error {
 }
 
 func (f fuzzI128) Add() error {
-	b1, b2 := f.source.BigI128(), f.source.BigI128()
+	b1, b2 := f.source.BigI128x2()
 	u1, u2 := accI128FromBigInt(b1), accI128FromBigInt(b2)
 	rb := new(big.Int).Add(b1, b2)
 	if rb.Cmp(wrapOverBigI128) >= 0 {
@@ -727,7 +762,7 @@ func (f fuzzI128) Add() error {
 }
 
 func (f fuzzI128) Sub() error {
-	b1, b2 := f.source.BigI128(), f.source.BigI128()
+	b1, b2 := f.source.BigI128x2()
 	u1, u2 := accI128FromBigInt(b1), accI128FromBigInt(b2)
 	rb := new(big.Int).Sub(b1, b2)
 	if rb.Cmp(wrapOverBigI128) >= 0 {
@@ -740,7 +775,7 @@ func (f fuzzI128) Sub() error {
 }
 
 func (f fuzzI128) Mul() error {
-	b1, b2 := f.source.BigI128(), f.source.BigI128()
+	b1, b2 := f.source.BigI128x2()
 	u1, u2 := accI128FromBigInt(b1), accI128FromBigInt(b2)
 	rb := new(big.Int).Mul(b1, b2)
 
@@ -763,7 +798,7 @@ func (f fuzzI128) Mul() error {
 }
 
 func (f fuzzI128) Quo() error {
-	b1, b2 := f.source.BigI128(), f.source.BigI128()
+	b1, b2 := f.source.BigI128x2()
 	u1, u2 := accI128FromBigInt(b1), accI128FromBigInt(b2)
 	if b2.Cmp(big0) == 0 {
 		return nil // Just skip this iteration, we know what happens!
@@ -774,7 +809,7 @@ func (f fuzzI128) Quo() error {
 }
 
 func (f fuzzI128) Rem() error {
-	b1, b2 := f.source.BigI128(), f.source.BigI128()
+	b1, b2 := f.source.BigI128x2()
 	u1, u2 := accI128FromBigInt(b1), accI128FromBigInt(b2)
 	if b2.Cmp(big0) == 0 {
 		return nil // Just skip this iteration, we know what happens!
@@ -785,7 +820,7 @@ func (f fuzzI128) Rem() error {
 }
 
 func (f fuzzI128) QuoRem() error {
-	b1, b2 := f.source.BigI128(), f.source.BigI128()
+	b1, b2 := f.source.BigI128x2()
 	u1, u2 := accI128FromBigInt(b1), accI128FromBigInt(b2)
 	if b2.Cmp(big0) == 0 {
 		return nil // Just skip this iteration, we know what happens!
@@ -804,37 +839,37 @@ func (f fuzzI128) QuoRem() error {
 }
 
 func (f fuzzI128) Cmp() error {
-	b1, b2 := f.source.BigI128(), f.source.BigI128()
+	b1, b2 := f.source.BigI128x2()
 	u1, u2 := accI128FromBigInt(b1), accI128FromBigInt(b2)
 	return checkEqualInt(u1.Cmp(u2), b1.Cmp(b2))
 }
 
 func (f fuzzI128) Equal() error {
-	b1, b2 := f.source.BigI128(), f.source.BigI128()
+	b1, b2 := f.source.BigI128x2()
 	u1, u2 := accI128FromBigInt(b1), accI128FromBigInt(b2)
 	return checkEqualBool(u1.Equal(u2), b1.Cmp(b2) == 0)
 }
 
 func (f fuzzI128) GreaterThan() error {
-	b1, b2 := f.source.BigI128(), f.source.BigI128()
+	b1, b2 := f.source.BigI128x2()
 	u1, u2 := accI128FromBigInt(b1), accI128FromBigInt(b2)
 	return checkEqualBool(u1.GreaterThan(u2), b1.Cmp(b2) > 0)
 }
 
 func (f fuzzI128) GreaterOrEqualTo() error {
-	b1, b2 := f.source.BigI128(), f.source.BigI128()
+	b1, b2 := f.source.BigI128x2()
 	u1, u2 := accI128FromBigInt(b1), accI128FromBigInt(b2)
 	return checkEqualBool(u1.GreaterOrEqualTo(u2), b1.Cmp(b2) >= 0)
 }
 
 func (f fuzzI128) LessThan() error {
-	b1, b2 := f.source.BigI128(), f.source.BigI128()
+	b1, b2 := f.source.BigI128x2()
 	u1, u2 := accI128FromBigInt(b1), accI128FromBigInt(b2)
 	return checkEqualBool(u1.LessThan(u2), b1.Cmp(b2) < 0)
 }
 
 func (f fuzzI128) LessOrEqualTo() error {
-	b1, b2 := f.source.BigI128(), f.source.BigI128()
+	b1, b2 := f.source.BigI128x2()
 	u1, u2 := accI128FromBigInt(b1), accI128FromBigInt(b2)
 	return checkEqualBool(u1.LessOrEqualTo(u2), b1.Cmp(b2) <= 0)
 }

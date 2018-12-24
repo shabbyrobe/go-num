@@ -49,6 +49,33 @@ func randI128(scratch []byte) I128 {
 	return i
 }
 
+func TestI128Add(t *testing.T) {
+	for idx, tc := range []struct {
+		a, b, c I128
+	}{
+		{i64(-2), i64(-1), i64(-3)},
+		{i64(-2), i64(1), i64(-1)},
+		{i64(-1), i64(1), i64(0)},
+		{i64(1), i64(2), i64(3)},
+		{i64(10), i64(3), i64(13)},
+
+		// Hi/lo carry:
+		{I128{lo: 0xFFFFFFFFFFFFFFFF}, i64(1), I128{hi: 1, lo: 0}},
+		{I128{hi: 1, lo: 0}, i64(-1), I128{lo: 0xFFFFFFFFFFFFFFFF}},
+
+		// Overflow:
+		{I128{hi: 0xFFFFFFFFFFFFFFFF, lo: 0xFFFFFFFFFFFFFFFF}, i64(1), I128{}},
+
+		// Overflow wraps:
+		{MaxI128, i64(1), MinI128},
+	} {
+		t.Run(fmt.Sprintf("%d/%s+%s=%s", idx, tc.a, tc.b, tc.c), func(t *testing.T) {
+			tt := assert.WrapTB(t)
+			tt.MustAssert(tc.c.Equal(tc.a.Add(tc.b)))
+		})
+	}
+}
+
 func TestI128AsBigInt(t *testing.T) {
 	for idx, tc := range []struct {
 		a I128
@@ -115,29 +142,22 @@ func TestI128AsFloat64(t *testing.T) {
 	}
 }
 
-func TestI128Add(t *testing.T) {
+func TestI128Cmp(t *testing.T) {
 	for idx, tc := range []struct {
-		a, b, c I128
+		a, b   I128
+		result int
 	}{
-		{i64(-2), i64(-1), i64(-3)},
-		{i64(-2), i64(1), i64(-1)},
-		{i64(-1), i64(1), i64(0)},
-		{i64(1), i64(2), i64(3)},
-		{i64(10), i64(3), i64(13)},
-
-		// Hi/lo carry:
-		{I128{lo: 0xFFFFFFFFFFFFFFFF}, i64(1), I128{hi: 1, lo: 0}},
-		{I128{hi: 1, lo: 0}, i64(-1), I128{lo: 0xFFFFFFFFFFFFFFFF}},
-
-		// Overflow:
-		{I128{hi: 0xFFFFFFFFFFFFFFFF, lo: 0xFFFFFFFFFFFFFFFF}, i64(1), I128{}},
-
-		// Overflow wraps:
-		{MaxI128, i64(1), MinI128},
+		{i64(0), i64(0), 0},
+		{i64(1), i64(0), 1},
+		{i64(10), i64(9), 1},
+		{i64(-1), i64(1), -1},
+		{i64(1), i64(-1), 1},
+		{MinI128, MaxI128, -1},
 	} {
-		t.Run(fmt.Sprintf("%d/%s+%s=%s", idx, tc.a, tc.b, tc.c), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%d/%s-1=%s", idx, tc.a, tc.b), func(t *testing.T) {
 			tt := assert.WrapTB(t)
-			tt.MustAssert(tc.c.Equal(tc.a.Add(tc.b)))
+			result := tc.a.Cmp(tc.b)
+			tt.MustEqual(tc.result, result)
 		})
 	}
 }

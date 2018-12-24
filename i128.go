@@ -275,13 +275,14 @@ func (i I128) Add(n I128) (v I128) {
 	return v
 }
 
-func (i I128) Sub(n I128) (v I128) {
-	v.lo = i.lo - n.lo
-	v.hi = i.hi - n.hi
-	if i.lo < v.lo {
-		v.hi--
+func (i I128) Sub(n I128) (out I128) {
+	out.lo = i.lo - n.lo
+	out.hi = i.hi - n.hi
+	if i.lo < out.lo {
+		out.hi--
 	}
-	return v
+	// fmt.Printf("(%#016x %#016x) (%#016x %#016x) (%#016x %#016x)\n", i.hi, i.lo, n.hi, n.lo, out.hi, out.lo)
+	return out
 }
 
 func (i I128) Neg() (v I128) {
@@ -300,7 +301,7 @@ func (i I128) Neg() (v I128) {
 		v.hi = ^i.hi
 		v.lo = (^i.lo) + 1
 	}
-	if v.lo == 0 {
+	if v.lo == 0 { // handle overflow
 		v.hi++
 	}
 	return v
