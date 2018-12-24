@@ -117,6 +117,8 @@ func RandU128(source RandSource) (out U128) {
 
 func (u U128) IsZero() bool { return u == zeroU128 }
 
+// Raw returns access to the U128 as a pair of uint64s. See U128FromRaw() for
+// the counterpart.
 func (u U128) Raw() (hi, lo uint64) { return u.hi, u.lo }
 
 func (u U128) String() string {
@@ -204,9 +206,15 @@ func (u U128) IsI128() bool {
 	return u.hi&signBit == 0
 }
 
-// AsUint64 truncates the U128 to fit in a uint64.
+// AsUint64 truncates the U128 to fit in a uint64. Values outside the range
+// will over/underflow. See IsUint64() if you want to check before you convert.
 func (u U128) AsUint64() uint64 {
 	return u.lo
+}
+
+// IsUint64 reports whether u can be represented as a uint64.
+func (u U128) IsUint64() bool {
+	return u.hi == 0
 }
 
 func (u U128) Inc() (v U128) {

@@ -169,7 +169,8 @@ func RandI128(source RandSource) (out I128) {
 
 func (i I128) IsZero() bool { return i == zeroI128 }
 
-// Raw returns access to the I128 as a pair of uint64s.
+// Raw returns access to the I128 as a pair of uint64s. See I128FromRaw() for
+// the counterpart.
 func (i I128) Raw() (hi uint64, lo uint64) { return i.hi, i.lo }
 
 func (i I128) String() string {
@@ -230,13 +231,8 @@ func (i I128) IsU128() bool {
 	return i.hi&signBit == 0
 }
 
-func (i I128) Sign() int {
-	if i == zeroI128 {
-		return 0
-	} else if i.hi&signBit == 0 {
-		return 1
-	}
-	return -1
+func (i I128) AsBigFloat() (b *big.Float) {
+	return new(big.Float).SetInt(i.AsBigInt())
 }
 
 func (i I128) AsFloat64() float64 {
@@ -257,8 +253,32 @@ func (i I128) AsFloat64() float64 {
 	}
 }
 
-func (i I128) AsBigFloat() (b *big.Float) {
-	return new(big.Float).SetInt(i.AsBigInt())
+// AsInt64 truncates the I128 to fit in a int64. Values outside the range will
+// over/underflow. See IsInt64() if you want to check before you convert.
+func (i I128) AsInt64() int64 {
+	if i.hi&signBit != 0 {
+		return -int64(^(i.lo - 1))
+	} else {
+		return int64(i.lo)
+	}
+}
+
+// IsInt64 reports whether i can be represented as a int64.
+func (i I128) IsInt64() bool {
+	if i.hi&signBit != 0 {
+		return i.hi == maxUint64 && i.lo >= 0x8000000000000000
+	} else {
+		return i.hi == 0 && i.lo <= maxInt64
+	}
+}
+
+func (i I128) Sign() int {
+	if i == zeroI128 {
+		return 0
+	} else if i.hi&signBit == 0 {
+		return 1
+	}
+	return -1
 }
 
 func (i I128) Inc() (v I128) {

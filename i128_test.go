@@ -163,6 +163,25 @@ func TestI128AsFloat64(t *testing.T) {
 	}
 }
 
+func TestI128AsInt64(t *testing.T) {
+	for idx, tc := range []struct {
+		a   I128
+		out int64
+	}{
+		{i64(-1), -1},
+		{i64(minInt64), minInt64},
+		{i64(maxInt64), maxInt64},
+		{i128s("9223372036854775808"), minInt64},  // (maxInt64 + 1) overflows to min
+		{i128s("-9223372036854775809"), maxInt64}, // (minInt64 - 1) underflows to max
+	} {
+		t.Run(fmt.Sprintf("%d/int64(%s)=%d", idx, tc.a, tc.out), func(t *testing.T) {
+			tt := assert.WrapTB(t)
+			iv := tc.a.AsInt64()
+			tt.MustEqual(tc.out, iv)
+		})
+	}
+}
+
 func TestI128Cmp(t *testing.T) {
 	for idx, tc := range []struct {
 		a, b   I128
@@ -300,6 +319,25 @@ func TestI128Inc(t *testing.T) {
 			tt := assert.WrapTB(t)
 			inc := tc.a.Inc()
 			tt.MustAssert(tc.b.Equal(inc), "%s + 1 != %s, found %s", tc.a, tc.b, inc)
+		})
+	}
+}
+
+func TestI128IsInt64(t *testing.T) {
+	for idx, tc := range []struct {
+		a  I128
+		is bool
+	}{
+		{i64(-1), true},
+		{i64(minInt64), true},
+		{i64(maxInt64), true},
+		{i128s("9223372036854775808"), false},  // (maxInt64 + 1)
+		{i128s("-9223372036854775809"), false}, // (minInt64 - 1)
+	} {
+		t.Run(fmt.Sprintf("%d/isint64(%s)=%v", idx, tc.a, tc.is), func(t *testing.T) {
+			tt := assert.WrapTB(t)
+			iv := tc.a.IsInt64()
+			tt.MustEqual(tc.is, iv)
 		})
 	}
 }
