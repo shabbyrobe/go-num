@@ -385,7 +385,7 @@ func (u U128) Quo(by U128) (q U128) {
 		q, _ = quorem128by128(u, by)
 		return q
 	} else {
-		return div128bin(u, by)
+		return quo128bin(u, by, uLeading0, byLeading0)
 	}
 }
 
@@ -412,18 +412,20 @@ func (u U128) QuoRem(by U128) (q, r U128) {
 		panic("u128: division by zero")
 	}
 
+	if u.hi|by.hi == 0 {
+		// protected from div/0 because by.lo is guaranteed to be set if by.hi is 0:
+		q.lo = u.lo / by.lo
+		r.lo = u.lo % by.lo
+		return q, r
+	}
+
 	var (
 		uLeading0   = u.leadingZeros()
 		byLeading0  = by.leadingZeros()
 		byTrailing0 = by.trailingZeros()
 	)
 
-	if u.hi|by.hi == 0 {
-		q.lo = u.lo / by.lo // FIXME: div/0 risk?
-		r.lo = u.lo % by.lo
-		return q, r
-
-	} else if byLeading0 == 127 {
+	if byLeading0 == 127 {
 		return u, r
 
 	} else if (byLeading0 + byTrailing0) == 127 {
@@ -445,7 +447,7 @@ func (u U128) QuoRem(by U128) (q, r U128) {
 	if byLeading0-uLeading0 > 16 {
 		return quorem128by128(u, by)
 	} else {
-		return quorem128bin(u, by)
+		return quorem128bin(u, by, uLeading0, byLeading0)
 	}
 }
 
@@ -627,18 +629,26 @@ func quorem128by128(m, v U128) (q, r U128) {
 	}
 }
 
-func quorem128bin(u, by U128) (q, r U128) {
-	shift := int(by.leadingZeros() - u.leadingZeros())
+func quorem128bin(u, by U128, uLeading0, byLeading0 uint) (q, r U128) {
+	shift := int(byLeading0 - uLeading0)
 	by = by.Lsh(uint(shift))
 
 	for {
-		q = q.Lsh(1)
-		if u.Cmp(by) >= 0 {
+		// {{{ Lsh(1)
+		q.hi = (q.hi << 1) | (q.lo >> 63)
+		q.lo = q.lo << 1
+		// }}}
+
+		// performance tweak: simulate greater than or equal by hand-inlining "not less than".
+		if !(u.hi < by.hi || (u.hi == by.hi && u.lo < by.lo)) {
 			u = u.Sub(by)
 			q.lo |= 1
 		}
 
-		by = by.Rsh(1)
+		// {{{ Rsh(1)
+		by.lo = (by.lo >> 1) | (by.hi << 63)
+		by.hi = by.hi >> 1
+		// }}}
 
 		if shift <= 0 {
 			break
@@ -650,18 +660,26 @@ func quorem128bin(u, by U128) (q, r U128) {
 	return q, r
 }
 
-func div128bin(u, by U128) (q U128) {
-	shift := int(by.leadingZeros() - u.leadingZeros())
+func quo128bin(u, by U128, uLeading0, byLeading0 uint) (q U128) {
+	shift := int(byLeading0 - uLeading0)
 	by = by.Lsh(uint(shift))
 
 	for {
-		q = q.Lsh(1)
-		if u.Cmp(by) >= 0 {
+		// {{{ Lsh(1)
+		q.hi = (q.hi << 1) | (q.lo >> 63)
+		q.lo = q.lo << 1
+		// }}}
+
+		// performance tweak: simulate greater than or equal by hand-inlining "not less than".
+		if !(u.hi < by.hi || (u.hi == by.hi && u.lo < by.lo)) {
 			u = u.Sub(by)
 			q.lo |= 1
 		}
 
-		by = by.Rsh(1)
+		// {{{ Rsh(1)
+		by.lo = (by.lo >> 1) | (by.hi << 63)
+		by.hi = by.hi >> 1
+		// }}}
 
 		if shift <= 0 {
 			break

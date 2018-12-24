@@ -337,6 +337,9 @@ func TestU128QuoRem(t *testing.T) {
 		{u: u64(1), by: u64(2), q: u64(0), r: u64(1)},
 		{u: u64(10), by: u64(3), q: u64(3), r: u64(1)},
 
+		// Investigate possible div/0 where lo of divisor is 0:
+		{u: U128{hi: 0, lo: 1}, by: U128{hi: 1, lo: 0}, q: u64(0), r: u64(1)},
+
 		// These test cases were found by the fuzzer and exposed a bug in the 128-bit divisor
 		// branch of divmod128by128:
 		// 3289699161974853443944280720275488 / 9261249991223143249760: u128(48100516172305203) != big(355211139435)
@@ -477,10 +480,10 @@ func BenchmarkU128QuoRem(b *testing.B) {
 		dividend U128
 		divisor  U128
 	}{
-		// 128-bit divisor lz+tz > 5 branch:
-		{u128s("0x123456789012345678901234567890"), u128s("0xFFFFFFFFFFFFFFF000000")},
+		// 128-bit divisor lz+tz > threshold branch:
+		{u128s("0x123456789012345678901234567890"), u128s("0xFF0000000000000000000")},
 
-		// 128-bit divisor lz+tz <= 5 branch:
+		// 128-bit divisor lz+tz <= threshold branch:
 		{u128s("0x12345678901234567890123456789012"), u128s("0x10000000000000000000000000000001")},
 
 		// 128-bit 'cmp == 0' shortcut branch:
