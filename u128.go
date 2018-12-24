@@ -358,45 +358,36 @@ func (u U128) Quo(by U128) (q U128) {
 		panic("u128: division by zero")
 	}
 
-	var (
-		uLeading0   = u.leadingZeros()
-		byLeading0  = by.leadingZeros()
-		byTrailing0 = by.trailingZeros()
-	)
-
 	if u.hi|by.hi == 0 {
 		q.lo = u.lo / by.lo // FIXME: div/0 risk?
 		return q
+	}
 
-	} else if byLeading0 == 127 {
+	byLeading0 := by.leadingZeros()
+	if byLeading0 == 127 {
 		return u
 
-	} else if (byLeading0 + byTrailing0) == 127 {
+	}
+
+	byTrailing0 := by.trailingZeros()
+	if (byLeading0 + byTrailing0) == 127 {
 		return u.Rsh(byTrailing0)
 	}
 
 	if cmp := u.Cmp(by); cmp < 0 {
-		return q
-
+		return q // it's 100% remainder
 	} else if cmp == 0 {
-		q.lo = 1
+		q.lo = 1 // dividend and divisor are the same
 		return q
 	}
 
+	uLeading0 := u.leadingZeros()
 	if byLeading0-uLeading0 > 5 {
 		q, _ = quorem128by128(u, by)
 		return q
 	} else {
 		return quo128bin(u, by, uLeading0, byLeading0)
 	}
-}
-
-// Rem returns the remainder of x%y for y != 0. If y == 0, a division-by-zero
-// run-time panic occurs. Rem implements truncated modulus (like Go); see
-// QuoRem for more details.
-func (u U128) Rem(by U128) (r U128) {
-	_, r = u.QuoRem(by)
-	return r
 }
 
 // QuoRem returns the quotient q and remainder r for y != 0. If y == 0, a
@@ -421,16 +412,13 @@ func (u U128) QuoRem(by U128) (q, r U128) {
 		return q, r
 	}
 
-	var (
-		uLeading0   = u.leadingZeros()
-		byLeading0  = by.leadingZeros()
-		byTrailing0 = by.trailingZeros()
-	)
-
+	byLeading0 := by.leadingZeros()
 	if byLeading0 == 127 {
 		return u, r
+	}
 
-	} else if (byLeading0 + byTrailing0) == 127 {
+	byTrailing0 := by.trailingZeros()
+	if (byLeading0 + byTrailing0) == 127 {
 		q = u.Rsh(byTrailing0)
 		by = by.Dec()
 		r = by.And(u)
@@ -441,16 +429,25 @@ func (u U128) QuoRem(by U128) (q, r U128) {
 		return q, u // it's 100% remainder
 
 	} else if cmp == 0 {
-		q.lo = 1
+		q.lo = 1 // dividend and divisor are the same
 		return q, r
 	}
 
 	// See BenchmarkU128QuoRemTZ for the test that helps determine this magic number:
+	uLeading0 := u.leadingZeros()
 	if byLeading0-uLeading0 > 16 {
 		return quorem128by128(u, by)
 	} else {
 		return quorem128bin(u, by, uLeading0, byLeading0)
 	}
+}
+
+// Rem returns the remainder of x%y for y != 0. If y == 0, a division-by-zero
+// run-time panic occurs. Rem implements truncated modulus (like Go); see
+// QuoRem for more details.
+func (u U128) Rem(by U128) (r U128) {
+	_, r = u.QuoRem(by)
+	return r
 }
 
 func (u U128) leadingZeros() uint {

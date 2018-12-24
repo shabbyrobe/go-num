@@ -331,7 +331,7 @@ func TestU128Mul(t *testing.T) {
 }
 
 func TestU128QuoRem(t *testing.T) {
-	for _, tc := range []struct {
+	for idx, tc := range []struct {
 		u, by, q, r U128
 	}{
 		{u: u64(1), by: u64(2), q: u64(0), r: u64(1)},
@@ -340,13 +340,22 @@ func TestU128QuoRem(t *testing.T) {
 		// Investigate possible div/0 where lo of divisor is 0:
 		{u: U128{hi: 0, lo: 1}, by: U128{hi: 1, lo: 0}, q: u64(0), r: u64(1)},
 
+		// 128-bit 'cmp == 0' shortcut branch:
+		{u128s("0x1234567890123456"), u128s("0x1234567890123456"), u64(1), u64(0)},
+
+		// 128-bit 'cmp < 0' shortcut branch:
+		{u128s("0x123456789012345678901234"), u128s("0x222222229012345678901234"), u64(0), u128s("0x123456789012345678901234")},
+
+		// 128-bit 'cmp == 0' shortcut branch:
+		{u128s("0x123456789012345678901234"), u128s("0x123456789012345678901234"), u64(1), u64(0)},
+
 		// These test cases were found by the fuzzer and exposed a bug in the 128-bit divisor
 		// branch of divmod128by128:
 		// 3289699161974853443944280720275488 / 9261249991223143249760: u128(48100516172305203) != big(355211139435)
 		// 51044189592896282646990963682604803 / 15356086376658915618524: u128(16290274193854465) != big(3324036368438)
 		// 555579170280843546177 / 21475569273528505412: u128(12) != big(25)
 	} {
-		t.Run(fmt.Sprintf("%s÷%s=%s,%s", tc.u, tc.by, tc.q, tc.r), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%d/%s÷%s=%s,%s", idx, tc.u, tc.by, tc.q, tc.r), func(t *testing.T) {
 			tt := assert.WrapTB(t)
 			q, r := tc.u.QuoRem(tc.by)
 			tt.MustEqual(tc.q.String(), q.String())
