@@ -241,7 +241,6 @@ func TestI128MarshalJSON(t *testing.T) {
 	for i := 0; i < 5000; i++ {
 		n := randI128(bts)
 
-		fmt.Println(n)
 		bts, err := json.Marshal(n)
 		tt.MustOK(err)
 
