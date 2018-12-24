@@ -47,17 +47,75 @@ func I128From32(v int32) I128 { return I128From64(int64(v)) }
 func I128From16(v int16) I128 { return I128From64(int64(v)) }
 func I128From8(v int8) I128   { return I128From64(int64(v)) }
 
+var (
+	minI128AsAbsU128 = U128{hi: 0x8000000000000000, lo: 0}
+	maxI128AsU128    = U128{hi: 0x7FFFFFFFFFFFFFFF, lo: 0xFFFFFFFFFFFFFFFF}
+)
+
 func I128FromBigInt(v *big.Int) (out I128, accurate bool) {
-	neg := v.Cmp(big0) < 0
-	var a, b big.Int
-	if neg {
-		a.Neg(v).Sub(&a, big1).Xor(&a, maxBigU128)
-	} else {
-		a.Set(v)
+	neg := v.Sign() < 0
+
+	words := v.Bits()
+
+	var u U128
+	accurate = true
+
+	switch intSize {
+	case 64:
+		lw := len(words)
+		switch lw {
+		case 0:
+		case 1:
+			u.lo = uint64(words[0])
+		case 2:
+			u.hi = uint64(words[1])
+			u.lo = uint64(words[0])
+		default:
+			u, accurate = MaxU128, false
+		}
+
+	case 32:
+		lw := len(words)
+		switch lw {
+		case 0:
+		case 1:
+			u.lo = uint64(words[0])
+		case 2:
+			u.lo = (uint64(words[1]) << 32) | (uint64(words[0]))
+		case 3:
+			u.hi = uint64(words[2])
+			u.lo = (uint64(words[1]) << 32) | (uint64(words[0]))
+		case 4:
+			u.hi = (uint64(words[3]) << 32) | (uint64(words[2]))
+			u.lo = (uint64(words[1]) << 32) | (uint64(words[0]))
+		default:
+			u, accurate = MaxU128, false
+		}
+
+	default:
+		panic("num: unsupported bit size")
 	}
-	out.lo = b.And(&a, maxBigUint64).Uint64()
-	out.hi = a.Rsh(&a, 64).Uint64()
-	return out, v.Cmp(minBigI128) >= 0 && v.Cmp(maxBigI128) <= 0
+
+	if !neg {
+		if cmp := u.Cmp(maxI128AsU128); cmp == 0 {
+			out = MaxI128
+		} else if cmp > 0 {
+			out, accurate = MaxI128, false
+		} else {
+			out = u.AsI128()
+		}
+
+	} else {
+		if cmp := u.Cmp(minI128AsAbsU128); cmp == 0 {
+			out = MinI128
+		} else if cmp > 0 {
+			out, accurate = MinI128, false
+		} else {
+			out = u.AsI128().Neg()
+		}
+	}
+
+	return out, accurate
 }
 
 func I128FromFloat32(f float32) I128 { return I128FromFloat64(float64(f)) }
@@ -241,6 +299,9 @@ func (i I128) Neg() (v I128) {
 	} else {
 		v.hi = ^i.hi
 		v.lo = (^i.lo) + 1
+	}
+	if v.lo == 0 {
+		v.hi++
 	}
 	return v
 }

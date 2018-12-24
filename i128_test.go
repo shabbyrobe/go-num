@@ -215,7 +215,7 @@ func TestI128FromSize(t *testing.T) {
 }
 
 func TestI128Inc(t *testing.T) {
-	for _, tc := range []struct {
+	for idx, tc := range []struct {
 		a, b I128
 	}{
 		{i64(-1), i64(0)},
@@ -226,7 +226,7 @@ func TestI128Inc(t *testing.T) {
 		{i128s("18446744073709551616"), i128s("18446744073709551617")},
 		{i128s("-18446744073709551617"), i128s("-18446744073709551616")},
 	} {
-		t.Run(fmt.Sprintf("%s+1=%s", tc.a, tc.b), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%d/%s+1=%s", idx, tc.a, tc.b), func(t *testing.T) {
 			tt := assert.WrapTB(t)
 			inc := tc.a.Inc()
 			tt.MustAssert(tc.b.Equal(inc), "%s + 1 != %s, found %s", tc.a, tc.b, inc)
@@ -284,6 +284,12 @@ func TestI128Neg(t *testing.T) {
 		// hi/lo carry:
 		{I128{lo: 0xFFFFFFFFFFFFFFFF}, I128{hi: 0xFFFFFFFFFFFFFFFF, lo: 1}},
 		{I128{hi: 0xFFFFFFFFFFFFFFFF, lo: 1}, I128{lo: 0xFFFFFFFFFFFFFFFF}},
+
+		// These cases popped up as a weird regression when refactoring I128FromBigInt:
+		{i128s("18446744073709551616"), i128s("-18446744073709551616")},
+		{i128s("-18446744073709551616"), i128s("18446744073709551616")},
+		{i128s("-18446744073709551617"), i128s("18446744073709551617")},
+		{I128{hi: 1, lo: 0}, I128{hi: 0xFFFFFFFFFFFFFFFF, lo: 0x0}},
 
 		{i128s("28446744073709551615"), i128s("-28446744073709551615")},
 		{i128s("-28446744073709551615"), i128s("28446744073709551615")},
@@ -364,8 +370,24 @@ func TestI128Sub(t *testing.T) {
 }
 
 var (
-	BenchIResult I128
+	BenchI128Result I128
 )
+
+func BenchmarkI128FromBigInt(b *testing.B) {
+	for _, bi := range []*big.Int{
+		bigs("0"),
+		bigs("0xfedcba98"),
+		bigs("0xfedcba9876543210"),
+		bigs("0xfedcba9876543210fedcba98"),
+		bigs("0xfedcba9876543210fedcba9876543210"),
+	} {
+		b.Run(fmt.Sprintf("%x", bi), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				BenchI128Result, _ = I128FromBigInt(bi)
+			}
+		})
+	}
+}
 
 func BenchmarkI128LessThan(b *testing.B) {
 	for _, iv := range []struct {
@@ -391,7 +413,7 @@ func BenchmarkI128Sub(b *testing.B) {
 	for _, iv := range []I128{i64(1), i128s("0x10000000000000000"), MaxI128} {
 		b.Run(fmt.Sprintf("%s", iv), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				BenchIResult = iv.Sub(sub)
+				BenchI128Result = iv.Sub(sub)
 			}
 		})
 	}

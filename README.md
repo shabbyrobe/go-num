@@ -18,6 +18,11 @@ Simple usage:
     b := a.Add(num.U128From64(5678))
     fmt.Printf("%x", x)
 
+**WARNING**: I have put a significant amount of effort into the testing of this
+library, but I am still finding and fixing bugs fairly regularly. Please be very
+careful if you choose to use this for production workloads, and take note of the
+clause regarding warranty in the LICENSE file.
+
 The whole library is aggressively fuzzed (see `fuzz_test.go`). Configure the fuzzer
 by playing with the following flags to `go test`:
 
@@ -31,7 +36,9 @@ by playing with the following flags to `go test`:
         Fuzz type (u128, i128) (can pass multiple)
 
 The fuzzer can do 10,000 iterations of all ops and all types per second. Most of this
-time is spent dealing with `big.Int`, which is used as a reference.
+time is spent dealing with `big.Int`, which is used as a reference. The fuzzer is great
+at finding many kinds of bugs, but not all. Specifically, all of the "64-128 bit carry"
+scenarios need manually written tests. This work is ongoing.
 
 
 Silly benchmarks game
