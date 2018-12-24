@@ -115,6 +115,8 @@ func RandU128(source RandSource) (out U128) {
 	return U128{hi: source.Uint64(), lo: source.Uint64()}
 }
 
+func (u U128) IsZero() bool { return u == zeroU128 }
+
 func (u U128) Raw() (hi, lo uint64) { return u.hi, u.lo }
 
 func (u U128) String() string {

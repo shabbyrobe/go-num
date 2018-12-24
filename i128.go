@@ -167,6 +167,8 @@ func RandI128(source RandSource) (out I128) {
 	return I128{hi: source.Uint64() & maxInt64, lo: source.Uint64()}
 }
 
+func (i I128) IsZero() bool { return i == zeroI128 }
+
 // Raw returns access to the I128 as a pair of uint64s.
 func (i I128) Raw() (hi uint64, lo uint64) { return i.hi, i.lo }
 
