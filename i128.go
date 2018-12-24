@@ -396,3 +396,37 @@ func (i I128) Rem(by I128) (r I128) {
 	_, r = i.QuoRem(by)
 	return r
 }
+
+func (u I128) MarshalText() ([]byte, error) {
+	return []byte(u.String()), nil
+}
+
+func (u *I128) UnmarshalText(bts []byte) (err error) {
+	v, _, err := I128FromString(string(bts))
+	if err != nil {
+		return err
+	}
+	*u = v
+	return nil
+}
+
+func (u I128) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + u.String() + `"`), nil
+}
+
+func (u *I128) UnmarshalJSON(bts []byte) (err error) {
+	if bts[0] == '"' {
+		ln := len(bts)
+		if bts[ln-1] != '"' {
+			return fmt.Errorf("num: i128 invalid JSON %q", string(bts))
+		}
+		bts = bts[1 : ln-1]
+	}
+
+	v, _, err := I128FromString(string(bts))
+	if err != nil {
+		return err
+	}
+	*u = v
+	return nil
+}

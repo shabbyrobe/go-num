@@ -2,6 +2,7 @@ package num
 
 import (
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"math/rand"
@@ -28,6 +29,22 @@ func i128s(s string) I128 {
 	i, acc := I128FromBigInt(b)
 	if !acc {
 		panic(fmt.Errorf("num: inaccurate i128 %s", s))
+	}
+	return i
+}
+
+func randI128(scratch []byte) I128 {
+	rand.Read(scratch)
+	i := I128{}
+	i.lo = binary.LittleEndian.Uint64(scratch)
+
+	if scratch[0]%2 == 1 {
+		// if we always generate hi bits, the universe will die before we
+		// test a number < maxInt64
+		i.hi = binary.LittleEndian.Uint64(scratch[8:])
+	}
+	if scratch[1]%2 == 1 {
+		i = i.Neg()
 	}
 	return i
 }
@@ -214,6 +231,23 @@ func TestI128Inc(t *testing.T) {
 			inc := tc.a.Inc()
 			tt.MustAssert(tc.b.Equal(inc), "%s + 1 != %s, found %s", tc.a, tc.b, inc)
 		})
+	}
+}
+
+func TestI128MarshalJSON(t *testing.T) {
+	tt := assert.WrapTB(t)
+	bts := make([]byte, 16)
+
+	for i := 0; i < 5000; i++ {
+		n := randI128(bts)
+
+		fmt.Println(n)
+		bts, err := json.Marshal(n)
+		tt.MustOK(err)
+
+		var result I128
+		tt.MustOK(json.Unmarshal(bts, &result))
+		tt.MustAssert(result.Equal(n))
 	}
 }
 
