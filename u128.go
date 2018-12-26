@@ -387,13 +387,13 @@ func (u U128) Quo(by U128) (q U128) {
 		return q
 	}
 
-	byLeading0 := by.leadingZeros()
+	byLeading0 := by.LeadingZeros()
 	if byLeading0 == 127 {
 		return u
 
 	}
 
-	byTrailing0 := by.trailingZeros()
+	byTrailing0 := by.TrailingZeros()
 	if (byLeading0 + byTrailing0) == 127 {
 		return u.Rsh(byTrailing0)
 	}
@@ -405,7 +405,7 @@ func (u U128) Quo(by U128) (q U128) {
 		return q
 	}
 
-	uLeading0 := u.leadingZeros()
+	uLeading0 := u.LeadingZeros()
 	if byLeading0-uLeading0 > 5 {
 		q, _ = quorem128by128(u, by)
 		return q
@@ -436,12 +436,12 @@ func (u U128) QuoRem(by U128) (q, r U128) {
 		return q, r
 	}
 
-	byLeading0 := by.leadingZeros()
+	byLeading0 := by.LeadingZeros()
 	if byLeading0 == 127 {
 		return u, r
 	}
 
-	byTrailing0 := by.trailingZeros()
+	byTrailing0 := by.TrailingZeros()
 	if (byLeading0 + byTrailing0) == 127 {
 		q = u.Rsh(byTrailing0)
 		by = by.Dec()
@@ -458,7 +458,7 @@ func (u U128) QuoRem(by U128) (q, r U128) {
 	}
 
 	// See BenchmarkU128QuoRemTZ for the test that helps determine this magic number:
-	uLeading0 := u.leadingZeros()
+	uLeading0 := u.LeadingZeros()
 	if byLeading0-uLeading0 > 16 {
 		return quorem128by128(u, by)
 	} else {
@@ -474,7 +474,7 @@ func (u U128) Rem(by U128) (r U128) {
 	return r
 }
 
-func (u U128) leadingZeros() uint {
+func (u U128) LeadingZeros() uint {
 	if u.hi == 0 {
 		return uint(bits.LeadingZeros64(u.lo)) + 64
 	} else {
@@ -482,7 +482,7 @@ func (u U128) leadingZeros() uint {
 	}
 }
 
-func (u U128) trailingZeros() uint {
+func (u U128) TrailingZeros() uint {
 	if u.lo == 0 {
 		return uint(bits.TrailingZeros64(u.hi)) + 64
 	} else {
@@ -745,4 +745,34 @@ func (u *U128) UnmarshalJSON(bts []byte) (err error) {
 	}
 	*u = v
 	return nil
+}
+
+func mul128to256(n, by U128) (hi, lo U128) {
+	hi = U128From64(n.hi).Mul(U128{lo: by.hi})
+	lo = U128From64(n.lo).Mul(U128{lo: by.lo})
+
+	t := U128From64(n.hi).Mul(U128{lo: by.lo})
+	lo.hi += t.lo
+
+	if lo.hi < t.lo { // if lo.Hi overflowed
+		hi = hi.Inc()
+	}
+
+	hi.lo += t.hi
+	if hi.lo < t.hi { // if hi.Lo overflowed
+		hi.hi++
+	}
+
+	t = U128{lo: n.lo}.Mul(U128{lo: by.hi})
+	lo.hi += t.lo
+	if lo.hi < t.lo { // if L.Hi overflowed
+		hi = hi.Inc()
+	}
+
+	hi.lo += t.hi
+	if hi.lo < t.hi { // if H.Lo overflowed
+		hi.hi++
+	}
+
+	return hi, lo
 }
