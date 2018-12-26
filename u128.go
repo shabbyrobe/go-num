@@ -771,7 +771,9 @@ func mul64to128(u, v uint64) (hi, lo uint64) {
 
 func mul128to256(n, by U128) (hi, lo U128) {
 	{ // hi = U128FromRaw(mul64to128(n.hi, by.hi))
-		// cannot inline mul64to128: function too complex: cost 85 exceeds budget 80
+		// "cannot inline mul64to128: function too complex: cost 85 exceeds budget 80"
+		// All this rotten hand-inlining doubles the speed of this function. Not a bad
+		// quick win, all things considered.
 		// :'(
 		var (
 			u  = n.hi

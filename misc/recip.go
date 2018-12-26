@@ -518,56 +518,43 @@ func (u U128) DivPow10(pow uint) U128 {
 	case 0:
 		panic("divide by 0")
 	case 1: // 10
-		recip := U128{hi: 0xcccccccccccccccc, lo: 0xcccccccccccccccd}
-		q, _ := mul128to256(u, recip)
+		q, _ := mul128to256(u.hi, u.lo, 0xcccccccccccccccc, 0xcccccccccccccccd)
 		return q.Rsh(3)
 	case 2: // 100
-		recip := U128{hi: 0xa3d70a3d70a3d70a, lo: 0x3d70a3d70a3d70a4}
-		q, _ := mul128to256(u, recip)
+		q, _ := mul128to256(u.hi, u.lo, 0xa3d70a3d70a3d70a, 0x3d70a3d70a3d70a4)
 		return q.Rsh(6)
 	case 3: // 1,000
-		recip := U128{hi: 0x624dd2f1a9fbe76, lo: 0xc8b4395810624dd3}
-		q, _ := mul128to256(u, recip)
+		q, _ := mul128to256(u.hi, u.lo, 0x624dd2f1a9fbe76, 0xc8b4395810624dd3)
 		return u.Sub(q).Rsh(1).Add(q).Rsh(9)
 	case 4: // 10,000
-		recip := U128{hi: 0xd1b71758e219652b, lo: 0xd3c36113404ea4a9}
-		q, _ := mul128to256(u, recip)
+		q, _ := mul128to256(u.hi, u.lo, 0xd1b71758e219652b, 0xd3c36113404ea4a9)
 		return q.Rsh(13)
 	case 5: // 100,000
-		recip := U128{hi: 0xa7c5ac471b478423, lo: 0xfcf80dc33721d54}
-		q, _ := mul128to256(u, recip)
+		q, _ := mul128to256(u.hi, u.lo, 0xa7c5ac471b478423, 0xfcf80dc33721d54)
 		return q.Rsh(16)
 	case 6: // 1,000,000
-		recip := U128{hi: 0x8637bd05af6c69b5, lo: 0xa63f9a49c2c1b110}
-		q, _ := mul128to256(u, recip)
+		q, _ := mul128to256(u.hi, u.lo, 0x8637bd05af6c69b5, 0xa63f9a49c2c1b110)
 		return q.Rsh(19)
 	case 7: // 10,000,000
-		recip := U128{hi: 0xd6bf94d5e57a42bc, lo: 0x3d32907604691b4d}
-		q, _ := mul128to256(u, recip)
+		q, _ := mul128to256(u.hi, u.lo, 0xd6bf94d5e57a42bc, 0x3d32907604691b4d)
 		return q.Rsh(23)
 	case 8: // 100,000,000
-		recip := U128{hi: 0x5798ee2308c39df9, lo: 0xfb841a566d74f87b}
-		q, _ := mul128to256(u, recip)
+		q, _ := mul128to256(u.hi, u.lo, 0x5798ee2308c39df9, 0xfb841a566d74f87b)
 		return u.Sub(q).Rsh(1).Add(q).Rsh(26)
 	case 9: // 1,000,000,000
-		recip := U128{hi: 0x89705f4136b4a597, lo: 0x31680a88f8953031}
-		q, _ := mul128to256(u, recip)
+		q, _ := mul128to256(u.hi, u.lo, 0x89705f4136b4a597, 0x31680a88f8953031)
 		return q.Rsh(29)
 	case 10: // 10,000,000,000
-		recip := U128{hi: 0xdbe6fecebdedd5be, lo: 0xb573440e5a884d1c}
-		q, _ := mul128to256(u, recip)
+		q, _ := mul128to256(u.hi, u.lo, 0xdbe6fecebdedd5be, 0xb573440e5a884d1c)
 		return q.Rsh(33)
 	case 11: // 100,000,000,000
-		recip := U128{hi: 0xafebff0bcb24aafe, lo: 0xf78f69a51539d749}
-		q, _ := mul128to256(u, recip)
+		q, _ := mul128to256(u.hi, u.lo, 0xafebff0bcb24aafe, 0xf78f69a51539d749)
 		return q.Rsh(36)
 	case 12: // 1,000,000,000,000
-		recip := U128{hi: 0x8cbccc096f5088cb, lo: 0xf93f87b7442e45d4}
-		q, _ := mul128to256(u, recip)
+		q, _ := mul128to256(u.hi, u.lo, 0x8cbccc096f5088cb, 0xf93f87b7442e45d4)
 		return q.Rsh(39)
 	case 13: // 10,000,000,000,000
-		recip := U128{hi: 0xe12e13424bb40e13, lo: 0x2865a5f206b06fba}
-		q, _ := mul128to256(u, recip)
+		q, _ := mul128to256(u.hi, u.lo, 0xe12e13424bb40e13, 0x2865a5f206b06fba)
 		return q.Rsh(43)
 
 	default: // TODO: 39 decimal digits in MaxU128
