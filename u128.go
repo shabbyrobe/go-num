@@ -747,11 +747,111 @@ func (u *U128) UnmarshalJSON(bts []byte) (err error) {
 	return nil
 }
 
-func mul128to256(n, by U128) (hi, lo U128) {
-	hi = U128From64(n.hi).Mul(U128{lo: by.hi})
-	lo = U128From64(n.lo).Mul(U128{lo: by.lo})
+func mul64to128(u, v uint64) (hi, lo uint64) {
+	var (
+		u1 = (u & 0xffffffff)
+		v1 = (v & 0xffffffff)
+		t  = (u1 * v1)
+		w3 = (t & 0xffffffff)
+		k  = (t >> 32)
+	)
 
-	t := U128From64(n.hi).Mul(U128{lo: by.lo})
+	u >>= 32
+	t = (u * v1) + k
+	k = (t & 0xffffffff)
+	var w1 = (t >> 32)
+
+	v >>= 32
+	t = (u1 * v) + k
+	k = (t >> 32)
+
+	return (u * v) + w1 + k,
+		(t << 32) + w3
+}
+
+func mul128to256(n, by U128) (hi, lo U128) {
+	{ // hi = U128FromRaw(mul64to128(n.hi, by.hi))
+		// cannot inline mul64to128: function too complex: cost 85 exceeds budget 80
+		// :'(
+		var (
+			u  = n.hi
+			v  = by.hi
+			u1 = (u & 0xffffffff)
+			v1 = (v & 0xffffffff)
+			t  = (u1 * v1)
+			w3 = (t & 0xffffffff)
+			k  = (t >> 32)
+		)
+
+		u >>= 32
+		t = (u * v1) + k
+		k = (t & 0xffffffff)
+		var w1 = (t >> 32)
+
+		v >>= 32
+		t = (u1 * v) + k
+		k = (t >> 32)
+
+		hi = U128{
+			hi: (u * v) + w1 + k,
+			lo: (t << 32) + w3,
+		}
+	}
+
+	{ // lo = U128FromRaw(mul64to128(n.lo, by.lo))
+		var (
+			u  = n.lo
+			v  = by.lo
+			u1 = (u & 0xffffffff)
+			v1 = (v & 0xffffffff)
+			t  = (u1 * v1)
+			w3 = (t & 0xffffffff)
+			k  = (t >> 32)
+		)
+
+		u >>= 32
+		t = (u * v1) + k
+		k = (t & 0xffffffff)
+		var w1 = (t >> 32)
+
+		v >>= 32
+		t = (u1 * v) + k
+		k = (t >> 32)
+
+		lo = U128{
+			hi: (u * v) + w1 + k,
+			lo: (t << 32) + w3,
+		}
+	}
+
+	var t U128
+
+	{ // t = U128FromRaw(mul64to128(n.hi, by.lo))
+		var (
+			u  = n.hi
+			v  = by.lo
+			u1 = (u & 0xffffffff)
+			v1 = (v & 0xffffffff)
+			ti = (u1 * v1)
+			w3 = (ti & 0xffffffff)
+			k  = (ti >> 32)
+		)
+
+		u >>= 32
+		ti = (u * v1) + k
+		k = (ti & 0xffffffff)
+		var w1 = (ti >> 32)
+
+		v >>= 32
+		ti = (u1 * v) + k
+		k = (ti >> 32)
+
+		t = U128{
+			hi: (u * v) + w1 + k,
+			lo: (ti << 32) + w3,
+		}
+	}
+
 	lo.hi += t.lo
 
 	if lo.hi < t.lo { // if lo.Hi overflowed
@@ -763,7 +863,32 @@ func mul128to256(n, by U128) (hi, lo U128) {
 		hi.hi++
 	}
 
-	t = U128{lo: n.lo}.Mul(U128{lo: by.hi})
+	{ // t = U128FromRaw(mul64to128(n.hi, by.lo))
+		var (
+			u  = n.lo
+			v  = by.hi
+			u1 = (u & 0xffffffff)
+			v1 = (v & 0xffffffff)
+			ti = (u1 * v1)
+			w3 = (ti & 0xffffffff)
+			k  = (ti >> 32)
+		)
+
+		u >>= 32
+		ti = (u * v1) + k
+		k = (ti & 0xffffffff)
+		var w1 = (ti >> 32)
+
+		v >>= 32
+		ti = (u1 * v) + k
+		k = (ti >> 32)
+
+		t = U128{
+			hi: (u * v) + w1 + k,
+			lo: (ti << 32) + w3,
+		}
+	}
+
 	lo.hi += t.lo
 	if lo.hi < t.lo { // if L.Hi overflowed
 		hi = hi.Inc()

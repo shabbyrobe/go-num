@@ -438,6 +438,14 @@ var (
 	BenchUint64Result   uint64
 )
 
+var BenchU128In1, BenchU128In2 = U128{hi: 1234, lo: 5678}, U128{hi: 9123, lo: 5678}
+
+func BenchmarkMul128to256(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		BenchU128Result, _ = mul128to256(BenchU128In1, BenchU128In2)
+	}
+}
+
 func BenchmarkU128Add(b *testing.B) {
 	u := U128From64(maxUint64)
 	for i := 0; i < b.N; i++ {
