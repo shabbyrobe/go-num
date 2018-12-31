@@ -143,7 +143,7 @@ func I128FromFloat64(f float64) (out I128, inRange bool) {
 			return I128{hi: maxUint64, lo: uint64(f)}, true
 		} else if f >= minI128Float {
 			f = -f
-			lo := mod(f, wrapUint64Float)
+			lo := modneg(f, wrapUint64Float) // f is guaranteed to be < 0 here.
 			return I128{hi: ^uint64(f / wrapUint64Float), lo: ^uint64(lo)}, true
 		} else {
 			return MinI128, false
@@ -153,7 +153,7 @@ func I128FromFloat64(f float64) (out I128, inRange bool) {
 		if f <= spillPos {
 			return I128{lo: uint64(f)}, true
 		} else if f <= maxI128Float {
-			lo := mod(f, wrapUint64Float)
+			lo := modpos(f, wrapUint64Float) // f is guaranteed to be > 0 here.
 			return I128{hi: uint64(f / wrapUint64Float), lo: uint64(lo)}, true
 		} else {
 			return MaxI128, false
@@ -350,6 +350,15 @@ func (i I128) Abs() I128 {
 	return i
 }
 
+// Cmp compares u to n and returns:
+//
+//	< 0 if x <  y
+//	  0 if x == y
+//	> 0 if x >  y
+//
+// The specific value returned by Cmp is undefined, but it is guaranteed to
+// satisfy the above constraints.
+//
 func (i I128) Cmp(n I128) int {
 	if i.hi == n.hi && i.lo == n.lo {
 		return 0

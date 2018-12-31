@@ -99,7 +99,7 @@ func U128FromFloat64(f float64) (out U128, inRange bool) {
 		return U128{lo: uint64(f)}, true
 
 	} else if f <= maxU128Float {
-		lo := mod(f, wrapUint64Float)
+		lo := mod(f, wrapUint64Float) // f is guaranteed to be > 0 here.
 		return U128{hi: uint64(f / wrapUint64Float), lo: uint64(lo)}, true
 
 	} else if f != f { // (f != f) == NaN
@@ -253,6 +253,15 @@ func (u U128) Sub(n U128) (v U128) {
 	return v
 }
 
+// Cmp compares u to n and returns:
+//
+//	< 0 if x <  y
+//	  0 if x == y
+//	> 0 if x >  y
+//
+// The specific value returned by Cmp is undefined, but it is guaranteed to
+// satisfy the above constraints.
+//
 func (u U128) Cmp(n U128) int {
 	if u.hi == n.hi {
 		if u.lo > n.lo {
