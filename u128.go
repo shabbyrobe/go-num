@@ -374,6 +374,9 @@ func (u U128) Mul(n U128) (dest U128) {
 	return dest
 }
 
+// See BenchmarkU128QuoRemTZ for the test that helps determine this magic number:
+const divAlgoLeading0Spill = 16
+
 // Quo returns the quotient x/y for y != 0. If y == 0, a division-by-zero
 // run-time panic occurs. Quo implements truncated division (like Go); see
 // QuoRem for more details.
@@ -387,10 +390,17 @@ func (u U128) Quo(by U128) (q U128) {
 		return q
 	}
 
-	byLeading0 := by.LeadingZeros()
+	var byLoLeading0, byHiLeading0, byLeading0 uint
+	if by.hi == 0 {
+		byLoLeading0, byHiLeading0 = uint(bits.LeadingZeros64(by.lo)), 64
+		byLeading0 = byLoLeading0 + 64
+	} else {
+		byHiLeading0 = uint(bits.LeadingZeros64(by.hi))
+		byLeading0 = byHiLeading0
+	}
+
 	if byLeading0 == 127 {
 		return u
-
 	}
 
 	byTrailing0 := by.TrailingZeros()
@@ -406,8 +416,8 @@ func (u U128) Quo(by U128) (q U128) {
 	}
 
 	uLeading0 := u.LeadingZeros()
-	if byLeading0-uLeading0 > 5 {
-		q, _ = quorem128by128(u, by)
+	if byLeading0-uLeading0 > divAlgoLeading0Spill {
+		q, _ = quorem128by128(u, by, byHiLeading0, byLoLeading0)
 		return q
 	} else {
 		return quo128bin(u, by, uLeading0, byLeading0)
@@ -436,7 +446,15 @@ func (u U128) QuoRem(by U128) (q, r U128) {
 		return q, r
 	}
 
-	byLeading0 := by.LeadingZeros()
+	var byLoLeading0, byHiLeading0, byLeading0 uint
+	if by.hi == 0 {
+		byLoLeading0, byHiLeading0 = uint(bits.LeadingZeros64(by.lo)), 64
+		byLeading0 = byLoLeading0 + 64
+	} else {
+		byHiLeading0 = uint(bits.LeadingZeros64(by.hi))
+		byLeading0 = byHiLeading0
+	}
+
 	if byLeading0 == 127 {
 		return u, r
 	}
@@ -457,10 +475,9 @@ func (u U128) QuoRem(by U128) (q, r U128) {
 		return q, r
 	}
 
-	// See BenchmarkU128QuoRemTZ for the test that helps determine this magic number:
 	uLeading0 := u.LeadingZeros()
-	if byLeading0-uLeading0 > 16 {
-		return quorem128by128(u, by)
+	if byLeading0-uLeading0 > divAlgoLeading0Spill {
+		return quorem128by128(u, by, byHiLeading0, byLoLeading0)
 	} else {
 		return quorem128bin(u, by, uLeading0, byLeading0)
 	}
@@ -552,19 +569,18 @@ again2:
 }
 
 // Hacker's delight 9-4, divlu:
-func quorem128by64(u1, u0, v uint64) (q, r uint64) {
+func quorem128by64(u1, u0, v uint64, vLeading0 uint) (q, r uint64) {
 	var b uint64 = 1 << 32
 	var un1, un0, vn1, vn0, q1, q0, un32, un21, un10, rhat, left, right uint64
 
-	s := uint(bits.LeadingZeros64(v))
-	v <<= s
+	v <<= vLeading0
 
 	vn1 = v >> 32
 	vn0 = v & 0xffffffff
 
-	if s > 0 {
-		un32 = (u1 << s) | (u0 >> (64 - s))
-		un10 = u0 << s
+	if vLeading0 > 0 {
+		un32 = (u1 << vLeading0) | (u0 >> (64 - vLeading0))
+		un10 = u0 << vLeading0
 	} else {
 		un32 = u1
 		un10 = u0
@@ -609,32 +625,30 @@ again2:
 		}
 	}
 
-	return (q1 << 32) | q0, ((un21 << 32) + (un0 - (q0 * v))) >> s
+	return (q1 << 32) | q0, ((un21 << 32) + (un0 - (q0 * v))) >> vLeading0
 }
 
-func quorem128by128(m, v U128) (q, r U128) {
+func quorem128by128(m, v U128, vHiLeading0, vLoLeading0 uint) (q, r U128) {
 	if v.hi == 0 {
 		if m.hi < v.lo {
-			q.lo, r.lo = quorem128by64(m.hi, m.lo, v.lo)
+			q.lo, r.lo = quorem128by64(m.hi, m.lo, v.lo, vLoLeading0)
 			return q, r
 
 		} else {
 			q.hi = m.hi / v.lo
 			r.hi = m.hi % v.lo
-			q.lo, r.lo = quorem128by64(r.hi, m.lo, v.lo)
+			q.lo, r.lo = quorem128by64(r.hi, m.lo, v.lo, vLoLeading0)
 			r.hi = 0
 			return q, r
 		}
 
 	} else {
-		sh := uint(bits.LeadingZeros64(v.hi))
-
-		v1 := v.Lsh(sh)
+		v1 := v.Lsh(vHiLeading0)
 		u1 := m.Rsh(1)
 
 		var q1 U128
 		q1.lo = quo128by64(u1.hi, u1.lo, v1.hi)
-		q1 = q1.Rsh(63 - sh)
+		q1 = q1.Rsh(63 - vHiLeading0)
 
 		if q1.hi|q1.lo != 0 {
 			q1 = q1.Dec()

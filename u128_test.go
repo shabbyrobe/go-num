@@ -534,6 +534,12 @@ func BenchmarkU128QuoRem(b *testing.B) {
 }
 
 func BenchmarkU128QuoRemTZ(b *testing.B) {
+	// If there's a big jump in speed from one of these cases to the next, it
+	// could be indicative that the algorithm selection spill point
+	// (divAlgoLeading0Spill) needs to change.
+	//
+	// This could probably be automated a little better, and the result is also
+	// likely platform and possibly CPU specific.
 	for zeros := 0; zeros < 31; zeros++ {
 		b.Run("", func(b *testing.B) {
 			bs := "0b"
