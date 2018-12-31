@@ -406,12 +406,12 @@ func (u U128) Quo(by U128) (q U128) {
 	}
 
 	uLeading0 := u.LeadingZeros()
-	if byLeading0-uLeading0 > 5 {
-		q, _ = quorem128by128(u, by)
-		return q
-	} else {
-		return quo128bin(u, by, uLeading0, byLeading0)
-	}
+	// if byLeading0-uLeading0 > 5 {
+	//     q, _ = quorem128by128(u, by)
+	//     return q
+	// } else {
+	return U128FromRaw(quo128bin(u.hi, u.lo, by.hi, by.lo, uLeading0, byLeading0))
+	// }
 }
 
 // QuoRem returns the quotient q and remainder r for y != 0. If y == 0, a
@@ -681,36 +681,6 @@ func quorem128bin(u, by U128, uLeading0, byLeading0 uint) (q, r U128) {
 
 	r = u
 	return q, r
-}
-
-func quo128bin(u, by U128, uLeading0, byLeading0 uint) (q U128) {
-	shift := int(byLeading0 - uLeading0)
-	by = by.Lsh(uint(shift))
-
-	for {
-		// {{{ Lsh(1)
-		q.hi = (q.hi << 1) | (q.lo >> 63)
-		q.lo = q.lo << 1
-		// }}}
-
-		// performance tweak: simulate greater than or equal by hand-inlining "not less than".
-		if !(u.hi < by.hi || (u.hi == by.hi && u.lo < by.lo)) {
-			u = u.Sub(by)
-			q.lo |= 1
-		}
-
-		// {{{ Rsh(1)
-		by.lo = (by.lo >> 1) | (by.hi << 63)
-		by.hi = by.hi >> 1
-		// }}}
-
-		if shift <= 0 {
-			break
-		}
-		shift--
-	}
-
-	return q
 }
 
 func (u U128) MarshalText() ([]byte, error) {
