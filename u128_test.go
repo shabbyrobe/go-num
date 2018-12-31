@@ -445,21 +445,125 @@ func BenchmarkU128Add(b *testing.B) {
 	}
 }
 
-func BenchmarkU128Mul(b *testing.B) {
-	u := U128From64(maxUint64)
+func BenchmarkU128AsBigFloat(b *testing.B) {
+	n := u128s("36893488147419103230")
 	for i := 0; i < b.N; i++ {
-		BenchU128Result = u.Mul(u)
+		BenchBigFloatResult = n.AsBigFloat()
 	}
 }
 
+func BenchmarkU128AsBigInt(b *testing.B) {
+	u := U128{lo: 0xFEDCBA9876543210, hi: 0xFEDCBA9876543210}
+	BenchBigIntResult = new(big.Int)
+
+	for i := uint(0); i <= 128; i += 32 {
+		v := u.Rsh(128 - i)
+		b.Run(fmt.Sprintf("%x,%x", v.hi, v.lo), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				BenchBigIntResult = v.AsBigInt()
+			}
+		})
+	}
+}
+
+func BenchmarkU128AsFloat(b *testing.B) {
+	n := u128s("36893488147419103230")
+	for i := 0; i < b.N; i++ {
+		BenchFloatResult = n.AsFloat64()
+	}
+}
+
+var benchU128CmpCases = []struct {
+	a, b U128
+	name string
+}{
+	{U128From64(maxUint64), U128From64(maxUint64), "equal64"},
+	{MaxU128, MaxU128, "equal128"},
+	{u128s("0xFFFFFFFFFFFFFFFF FFFFFFFFFFFFFFFF"), u128s("0xEFFFFFFFFFFFFFFF FFFFFFFFFFFFFFFF"), "lesshi"},
+	{u128s("0xEFFFFFFFFFFFFFFF"), u128s("0xFFFFFFFFFFFFFFFF"), "lesslo"},
+	{u128s("0xFFFFFFFFFFFFFFFF FFFFFFFFFFFFFFFF"), u128s("0xEFFFFFFFFFFFFFFF FFFFFFFFFFFFFFFF"), "greaterhi"},
+	{u128s("0xFFFFFFFFFFFFFFFF"), u128s("0xEFFFFFFFFFFFFFFF"), "greaterlo"},
+}
+
 func BenchmarkU128Cmp(b *testing.B) {
-	b.Run("equal", func(b *testing.B) {
-		u := U128From64(maxUint64)
-		n := U128From64(maxUint64)
-		for i := 0; i < b.N; i++ {
-			BenchIntResult = u.Cmp(n)
-		}
-	})
+	for _, tc := range benchU128CmpCases {
+		b.Run(fmt.Sprintf("u128cmp/%s", tc.name), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				BenchIntResult = tc.a.Cmp(tc.b)
+			}
+		})
+	}
+}
+
+func BenchmarkU128FromBigInt(b *testing.B) {
+	for _, bi := range []*big.Int{
+		bigs("0"),
+		bigs("0xfedcba98"),
+		bigs("0xfedcba9876543210"),
+		bigs("0xfedcba9876543210fedcba98"),
+		bigs("0xfedcba9876543210fedcba9876543210"),
+	} {
+		b.Run(fmt.Sprintf("%x", bi), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				BenchU128Result, _ = U128FromBigInt(bi)
+			}
+		})
+	}
+}
+
+func BenchmarkU128FromFloat(b *testing.B) {
+	for _, pow := range []float64{1, 63, 64, 65, 127, 128} {
+		b.Run(fmt.Sprintf("pow%d", int(pow)), func(b *testing.B) {
+			f := math.Pow(2, pow)
+			for i := 0; i < b.N; i++ {
+				BenchU128Result, _ = U128FromFloat64(f)
+			}
+		})
+	}
+}
+
+func BenchmarkU128GreaterThan(b *testing.B) {
+	for _, tc := range benchU128CmpCases {
+		b.Run(fmt.Sprintf("u128gt/%s", tc.name), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				BenchBoolResult = tc.a.GreaterThan(tc.b)
+			}
+		})
+	}
+}
+
+func BenchmarkU128GreaterOrEqualTo(b *testing.B) {
+	for _, tc := range benchU128CmpCases {
+		b.Run(fmt.Sprintf("u128gte/%s", tc.name), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				BenchBoolResult = tc.a.GreaterOrEqualTo(tc.b)
+			}
+		})
+	}
+}
+
+func BenchmarkU128IntoBigInt(b *testing.B) {
+	u := U128{lo: 0xFEDCBA9876543210, hi: 0xFEDCBA9876543210}
+	BenchBigIntResult = new(big.Int)
+
+	for i := uint(0); i <= 128; i += 32 {
+		v := u.Rsh(128 - i)
+		b.Run(fmt.Sprintf("%x,%x", v.hi, v.lo), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				v.IntoBigInt(BenchBigIntResult)
+			}
+		})
+	}
+}
+
+func BenchmarkU128LessThan(b *testing.B) {
+	for _, tc := range benchU128CmpCases {
+		b.Run(fmt.Sprintf("u128lt/%s", tc.name), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				BenchBoolResult = tc.a.LessThan(tc.b)
+			}
+		})
+	}
 }
 
 func BenchmarkU128Lsh(b *testing.B) {
@@ -487,6 +591,13 @@ func BenchmarkU128Lsh(b *testing.B) {
 				BenchU128Result = tc.in.Lsh(tc.sh)
 			}
 		})
+	}
+}
+
+func BenchmarkU128Mul(b *testing.B) {
+	u := U128From64(maxUint64)
+	for i := 0; i < b.N; i++ {
+		BenchU128Result = u.Mul(u)
 	}
 }
 
@@ -556,91 +667,6 @@ func BenchmarkU128QuoRemTZ(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
 				BenchU128Result, _ = da.QuoRem(db)
-			}
-		})
-	}
-}
-
-func BenchmarkU128AsBigFloat(b *testing.B) {
-	n := u128s("36893488147419103230")
-	for i := 0; i < b.N; i++ {
-		BenchBigFloatResult = n.AsBigFloat()
-	}
-}
-
-func BenchmarkU128AsFloat(b *testing.B) {
-	n := u128s("36893488147419103230")
-	for i := 0; i < b.N; i++ {
-		BenchFloatResult = n.AsFloat64()
-	}
-}
-
-func BenchmarkU128FromFloat(b *testing.B) {
-	for _, pow := range []float64{1, 63, 64, 65, 127, 128} {
-		b.Run(fmt.Sprintf("pow%d", int(pow)), func(b *testing.B) {
-			f := math.Pow(2, pow)
-			for i := 0; i < b.N; i++ {
-				BenchU128Result, _ = U128FromFloat64(f)
-			}
-		})
-	}
-}
-
-func BenchmarkU128FromBigInt(b *testing.B) {
-	for _, bi := range []*big.Int{
-		bigs("0"),
-		bigs("0xfedcba98"),
-		bigs("0xfedcba9876543210"),
-		bigs("0xfedcba9876543210fedcba98"),
-		bigs("0xfedcba9876543210fedcba9876543210"),
-	} {
-		b.Run(fmt.Sprintf("%x", bi), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				BenchU128Result, _ = U128FromBigInt(bi)
-			}
-		})
-	}
-}
-
-func BenchmarkU128AsBigInt(b *testing.B) {
-	u := U128{lo: 0xFEDCBA9876543210, hi: 0xFEDCBA9876543210}
-	BenchBigIntResult = new(big.Int)
-
-	for i := uint(0); i <= 128; i += 32 {
-		v := u.Rsh(128 - i)
-		b.Run(fmt.Sprintf("%x,%x", v.hi, v.lo), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				BenchBigIntResult = v.AsBigInt()
-			}
-		})
-	}
-}
-
-func BenchmarkU128IntoBigInt(b *testing.B) {
-	u := U128{lo: 0xFEDCBA9876543210, hi: 0xFEDCBA9876543210}
-	BenchBigIntResult = new(big.Int)
-
-	for i := uint(0); i <= 128; i += 32 {
-		v := u.Rsh(128 - i)
-		b.Run(fmt.Sprintf("%x,%x", v.hi, v.lo), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				v.IntoBigInt(BenchBigIntResult)
-			}
-		})
-	}
-}
-
-func BenchmarkU128LessThan(b *testing.B) {
-	for _, iv := range []struct {
-		a, b U128
-	}{
-		{u64(1), u64(1)},
-		{u64(2), u64(1)},
-		{u64(1), u64(2)},
-	} {
-		b.Run(fmt.Sprintf("%s<%s", iv.a, iv.b), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				BenchBoolResult = iv.a.LessThan(iv.b)
 			}
 		})
 	}

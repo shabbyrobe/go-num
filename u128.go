@@ -254,14 +254,18 @@ func (u U128) Sub(n U128) (v U128) {
 }
 
 func (u U128) Cmp(n U128) int {
-	if u.hi > n.hi {
-		return 1
-	} else if u.hi < n.hi {
-		return -1
-	} else if u.lo > n.lo {
-		return 1
-	} else if u.lo < n.lo {
-		return -1
+	if u.hi == n.hi {
+		if u.lo > n.lo {
+			return 1
+		} else if u.lo < n.lo {
+			return -1
+		}
+	} else {
+		if u.hi > n.hi {
+			return 1
+		} else if u.hi < n.hi {
+			return -1
+		}
 	}
 	return 0
 }
@@ -275,16 +279,7 @@ func (u U128) GreaterThan(n U128) bool {
 }
 
 func (u U128) GreaterOrEqualTo(n U128) bool {
-	if u.hi > n.hi {
-		return true
-	} else if u.hi < n.hi {
-		return false
-	} else if u.lo > n.lo {
-		return true
-	} else if u.lo < n.lo {
-		return false
-	}
-	return true
+	return u.hi > n.hi || (u.hi == n.hi && u.lo >= n.lo)
 }
 
 func (u U128) LessThan(n U128) bool {
@@ -292,16 +287,7 @@ func (u U128) LessThan(n U128) bool {
 }
 
 func (u U128) LessOrEqualTo(n U128) bool {
-	if u.hi > n.hi {
-		return false
-	} else if u.hi < n.hi {
-		return true
-	} else if u.lo > n.lo {
-		return false
-	} else if u.lo < n.lo {
-		return true
-	}
-	return true
+	return u.hi < n.hi || (u.hi == n.hi && u.lo <= n.lo)
 }
 
 func (u U128) And(v U128) (out U128) {
