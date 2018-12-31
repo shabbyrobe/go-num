@@ -52,8 +52,9 @@ var (
 	// wrapUnderBigI128 is -(1 << 127) - 1, used to simulate over/underflow:
 	wrapUnderBigI128, _ = new(big.Int).SetString("-170141183460469231731687303715884105729", 0)
 
-	// This specifies the maximum error allowed between the float64 version of a
-	// 128-bit u?int and the result of the same operation performed by big.Float.
+	// This specifies the maximum error allowed between the float64 version of
+	// a 128-bit int/uint and the result of the same operation performed by
+	// big.Float.
 	//
 	// Calculate like so:
 	//	return math.Nextafter(1.0, 2.0) - 1.0

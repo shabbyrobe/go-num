@@ -82,9 +82,12 @@ func U128FromFloat32(f float32) (out U128, inRange bool) {
 	return U128FromFloat64(float64(f))
 }
 
-// U128FromFloat64 creates a U128 from a float64. Any fractional portion
-// will be truncated towards zero. Floats outside the bounds of a U128
-// may be discarded or clamped and inRange will be set to false.
+// U128FromFloat64 creates a U128 from a float64.
+//
+// Any fractional portion will be truncated towards zero.
+//
+// Floats outside the bounds of a U128 may be discarded or clamped and inRange
+// will be set to false.
 //
 // NaN is treated as 0, inRange is set to false. This may change to a panic
 // at some point.
@@ -99,7 +102,7 @@ func U128FromFloat64(f float64) (out U128, inRange bool) {
 		return U128{lo: uint64(f)}, true
 
 	} else if f <= maxU128Float {
-		lo := mod(f, wrapUint64Float) // f is guaranteed to be > 0 here.
+		lo := modpos(f, wrapUint64Float) // f is guaranteed to be > 0 here.
 		return U128{hi: uint64(f / wrapUint64Float), lo: uint64(lo)}, true
 
 	} else if f != f { // (f != f) == NaN
@@ -675,21 +678,19 @@ func quorem128bin(u, by U128, uLeading0, byLeading0 uint) (q, r U128) {
 	by = by.Lsh(uint(shift))
 
 	for {
-		// {{{ Lsh(1)
+		// q << 1
 		q.hi = (q.hi << 1) | (q.lo >> 63)
 		q.lo = q.lo << 1
-		// }}}
 
 		// performance tweak: simulate greater than or equal by hand-inlining "not less than".
-		if !(u.hi < by.hi || (u.hi == by.hi && u.lo < by.lo)) {
+		if u.hi > by.hi || (u.hi == by.hi && u.lo >= by.lo) {
 			u = u.Sub(by)
 			q.lo |= 1
 		}
 
-		// {{{ Rsh(1)
+		// by >> 1
 		by.lo = (by.lo >> 1) | (by.hi << 63)
 		by.hi = by.hi >> 1
-		// }}}
 
 		if shift <= 0 {
 			break
@@ -706,21 +707,19 @@ func quo128bin(u, by U128, uLeading0, byLeading0 uint) (q U128) {
 	by = by.Lsh(uint(shift))
 
 	for {
-		// {{{ Lsh(1)
+		// q << 1
 		q.hi = (q.hi << 1) | (q.lo >> 63)
 		q.lo = q.lo << 1
-		// }}}
 
-		// performance tweak: simulate greater than or equal by hand-inlining "not less than".
-		if !(u.hi < by.hi || (u.hi == by.hi && u.lo < by.lo)) {
+		// u >= by
+		if u.hi > by.hi || (u.hi == by.hi && u.lo >= by.lo) {
 			u = u.Sub(by)
 			q.lo |= 1
 		}
 
-		// {{{ Rsh(1)
+		// q >> 1
 		by.lo = (by.lo >> 1) | (by.hi << 63)
 		by.hi = by.hi >> 1
-		// }}}
 
 		if shift <= 0 {
 			break

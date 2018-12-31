@@ -122,9 +122,12 @@ func I128FromFloat32(f float32) (out I128, inRange bool) {
 	return I128FromFloat64(float64(f))
 }
 
-// I128FromFloat64 creates a I128 from a float64. Any fractional portion
-// will be truncated towards zero. Floats outside the bounds of a I128
-// may be discarded or clamped.
+// I128FromFloat64 creates a I128 from a float64.
+//
+// Any fractional portion will be truncated towards zero.
+//
+// Floats outside the bounds of a I128 may be discarded or clamped and inRange
+// will be set to false.
 //
 // NaN is treated as 0, inRange is set to false. This may change to a panic
 // at some point.
@@ -143,7 +146,7 @@ func I128FromFloat64(f float64) (out I128, inRange bool) {
 			return I128{hi: maxUint64, lo: uint64(f)}, true
 		} else if f >= minI128Float {
 			f = -f
-			lo := modneg(f, wrapUint64Float) // f is guaranteed to be < 0 here.
+			lo := modpos(f, wrapUint64Float) // f is guaranteed to be < 0 here.
 			return I128{hi: ^uint64(f / wrapUint64Float), lo: ^uint64(lo)}, true
 		} else {
 			return MinI128, false

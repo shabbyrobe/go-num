@@ -450,6 +450,25 @@ func TestI128QuoRem(t *testing.T) {
 	}
 }
 
+func TestI128Sign(t *testing.T) {
+	for idx, tc := range []struct {
+		a    I128
+		sign int
+	}{
+		{i64(0), 0},
+		{i64(1), 1},
+		{i64(-1), -1},
+		{MinI128, -1},
+		{MaxI128, 1},
+	} {
+		t.Run(fmt.Sprintf("%d/%s==%d", idx, tc.a, tc.sign), func(t *testing.T) {
+			tt := assert.WrapTB(t)
+			result := tc.a.Sign()
+			tt.MustEqual(tc.sign, result)
+		})
+	}
+}
+
 func TestI128Sub(t *testing.T) {
 	for idx, tc := range []struct {
 		a, b, c I128
