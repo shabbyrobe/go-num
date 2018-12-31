@@ -160,10 +160,10 @@ func (r *rando) BigU128x2() (b1, b2 *big.Int) {
 	b1 = r.BigU128()
 	if r.samesies(2) > 0 {
 		b2 = new(big.Int).Set(b1)
-		r.operands = append(r.operands, b2)
 	} else {
 		b2 = r.BigU128()
 	}
+	r.operands = append(r.operands, b2)
 	return b1, b2
 }
 
@@ -171,10 +171,10 @@ func (r *rando) BigI128x2() (b1, b2 *big.Int) {
 	b1 = r.BigI128()
 	if r.samesies(2) > 0 {
 		b2 = new(big.Int).Set(b1)
-		r.operands = append(r.operands, b2)
 	} else {
 		b2 = r.BigI128()
 	}
+	r.operands = append(r.operands, b2)
 	return b1, b2
 }
 
