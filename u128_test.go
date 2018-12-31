@@ -490,20 +490,41 @@ func BenchmarkU128Lsh(b *testing.B) {
 	}
 }
 
+var benchQuoCases = []struct {
+	dividend U128
+	divisor  U128
+}{
+	// 128-bit divide by 1 branch:
+	{MaxU128, u64(1)},
+
+	// 128-bit divide by power of 2 branch:
+	{MaxU128, u64(2)},
+
+	// 64-bit divide by 1 branch:
+	{u64(maxUint64), u64(1)},
+
+	// 128-bit divisor lz+tz > threshold branch:
+	{u128s("0x123456789012345678901234567890"), u128s("0xFF0000000000000000000")},
+
+	// 128-bit divisor lz+tz <= threshold branch:
+	{u128s("0x12345678901234567890123456789012"), u128s("0x10000000000000000000000000000001")},
+
+	// 128-bit 'cmp == 0' shortcut branch:
+	{u128s("0x1234567890123456"), u128s("0x1234567890123456")},
+}
+
+func BenchmarkU128Quo(b *testing.B) {
+	for _, bc := range benchQuoCases {
+		b.Run("", func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				BenchU128Result = bc.dividend.Quo(bc.divisor)
+			}
+		})
+	}
+}
+
 func BenchmarkU128QuoRem(b *testing.B) {
-	for _, bc := range []struct {
-		dividend U128
-		divisor  U128
-	}{
-		// 128-bit divisor lz+tz > threshold branch:
-		{u128s("0x123456789012345678901234567890"), u128s("0xFF0000000000000000000")},
-
-		// 128-bit divisor lz+tz <= threshold branch:
-		{u128s("0x12345678901234567890123456789012"), u128s("0x10000000000000000000000000000001")},
-
-		// 128-bit 'cmp == 0' shortcut branch:
-		{u128s("0x1234567890123456"), u128s("0x1234567890123456")},
-	} {
+	for _, bc := range benchQuoCases {
 		b.Run("", func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				BenchU128Result, _ = bc.dividend.QuoRem(bc.divisor)
