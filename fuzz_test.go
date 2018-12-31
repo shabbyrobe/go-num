@@ -23,6 +23,7 @@ const (
 	fuzzAbs              fuzzOp = "abs"
 	fuzzAdd              fuzzOp = "add"
 	fuzzAnd              fuzzOp = "and"
+	fuzzAndNot           fuzzOp = "andnot"
 	fuzzAsFloat64        fuzzOp = "asfloat64"
 	fuzzCmp              fuzzOp = "cmp"
 	fuzzDec              fuzzOp = "dec"
@@ -63,6 +64,7 @@ var allFuzzOps = []fuzzOp{
 	fuzzAbs,
 	fuzzAdd,
 	fuzzAnd,
+	fuzzAndNot,
 	fuzzAsFloat64,
 	fuzzCmp,
 	fuzzDec,
@@ -93,6 +95,7 @@ type fuzzOps interface {
 	Abs() error
 	Add() error
 	And() error
+	AndNot() error
 	AsFloat64() error
 	Cmp() error
 	Dec() error
@@ -325,6 +328,8 @@ func TestFuzz(t *testing.T) {
 					err = fuzzImpl.Add()
 				case fuzzAnd:
 					err = fuzzImpl.And()
+				case fuzzAndNot:
+					err = fuzzImpl.AndNot()
 				case fuzzAsFloat64:
 					err = fuzzImpl.AsFloat64()
 				case fuzzCmp:
@@ -416,9 +421,26 @@ func (op fuzzOp) Print(operands ...*big.Int) string {
 	case fuzzAbs:
 		return fmt.Sprintf("|%d|", operands[0])
 
-	case fuzzAdd, fuzzSub, fuzzCmp, fuzzEqual, fuzzGreaterThan, fuzzGreaterOrEqualTo,
-		fuzzLessThan, fuzzLessOrEqualTo, fuzzAnd, fuzzOr, fuzzXor, fuzzLsh, fuzzRsh,
-		fuzzMul, fuzzQuo, fuzzRem, fuzzQuoRem: // simple binary case:
+	case fuzzAdd,
+		fuzzAnd,
+		fuzzAndNot,
+		fuzzLessOrEqualTo,
+		fuzzLessThan,
+		fuzzLsh,
+		fuzzMul,
+		fuzzOr,
+		fuzzQuo,
+		fuzzQuoRem,
+		fuzzRem,
+		fuzzRsh,
+		fuzzXor,
+		fuzzCmp,
+		fuzzEqual,
+		fuzzGreaterOrEqualTo,
+		fuzzGreaterThan,
+		fuzzSub:
+
+		// simple binary case:
 		return fmt.Sprintf("%d %s %d", operands[0], op.String(), operands[1])
 
 	default:
@@ -436,6 +458,8 @@ func (op fuzzOp) String() string {
 		return "+"
 	case fuzzAnd:
 		return "&"
+	case fuzzAndNot:
+		return "&^"
 	case fuzzAsFloat64:
 		return "float64()"
 	case fuzzCmp:
@@ -630,6 +654,14 @@ func (f fuzzU128) And() error {
 	u1, u2 := accU128FromBigInt(b1), accU128FromBigInt(b2)
 	rb := new(big.Int).And(b1, b2)
 	ru := u1.And(u2)
+	return checkEqualU128(ru, rb)
+}
+
+func (f fuzzU128) AndNot() error {
+	b1, b2 := f.source.BigU128x2()
+	u1, u2 := accU128FromBigInt(b1), accU128FromBigInt(b2)
+	rb := new(big.Int).AndNot(b1, b2)
+	ru := u1.AndNot(u2)
 	return checkEqualU128(ru, rb)
 }
 
@@ -912,11 +944,12 @@ func (f fuzzI128) FromFloat64() error {
 }
 
 // Bitwise operations on I128 are not supported:
-func (f fuzzI128) And() error { return nil }
-func (f fuzzI128) Or() error  { return nil }
-func (f fuzzI128) Xor() error { return nil }
-func (f fuzzI128) Lsh() error { return nil }
-func (f fuzzI128) Rsh() error { return nil }
+func (f fuzzI128) And() error    { return nil }
+func (f fuzzI128) AndNot() error { return nil }
+func (f fuzzI128) Or() error     { return nil }
+func (f fuzzI128) Xor() error    { return nil }
+func (f fuzzI128) Lsh() error    { return nil }
+func (f fuzzI128) Rsh() error    { return nil }
 
 func (f fuzzI128) Neg() error {
 	b1 := f.source.BigI128()

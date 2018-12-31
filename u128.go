@@ -84,7 +84,7 @@ func U128FromFloat32(f float32) (out U128, inRange bool) {
 
 // U128FromFloat64 creates a U128 from a float64. Any fractional portion
 // will be truncated towards zero. Floats outside the bounds of a U128
-// may be discarded or clamped.
+// may be discarded or clamped and inRange will be set to false.
 //
 // NaN is treated as 0, inRange is set to false. This may change to a panic
 // at some point.
@@ -175,6 +175,9 @@ func (u U128) IntoBigInt(b *big.Int) {
 	}
 }
 
+// AsBigInt returns the U128 as a big.Int. This will allocate memory. If
+// performance is a concern and you are able to re-use memory, use
+// U128.IntoBigInt().
 func (u U128) AsBigInt() (b *big.Int) {
 	var v big.Int
 	u.IntoBigInt(&v)
@@ -302,6 +305,12 @@ func (u U128) LessOrEqualTo(n U128) bool {
 func (u U128) And(v U128) (out U128) {
 	out.hi = u.hi & v.hi
 	out.lo = u.lo & v.lo
+	return out
+}
+
+func (u U128) AndNot(v U128) (out U128) {
+	out.hi = u.hi &^ v.hi
+	out.lo = u.lo &^ v.lo
 	return out
 }
 
