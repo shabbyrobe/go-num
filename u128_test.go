@@ -447,21 +447,21 @@ func TestU128MarshalJSON(t *testing.T) {
 	}
 }
 
-var (
-	BenchBigFloatResult *big.Float
-	BenchBigIntResult   *big.Int
-	BenchBoolResult     bool
-	BenchFloatResult    float64
-	BenchIntResult      int
-	BenchStringResult   string
-	BenchU128Result     U128
-	BenchUint64Result   uint64
-)
-
 func BenchmarkU128Add(b *testing.B) {
-	u := U128From64(maxUint64)
-	for i := 0; i < b.N; i++ {
-		BenchU128Result = u.Add(u)
+	for idx, tc := range []struct {
+		a, b U128
+		name string
+	}{
+		{zeroU128, zeroU128, "0+0"},
+		{MaxU128, MaxU128, "max+max"},
+		{u128s("0x7FFFFFFFFFFFFFFF"), u128s("0x7FFFFFFFFFFFFFFF"), "lo-only"},
+		{u128s("0xFFFFFFFFFFFFFFFF"), u128s("0x7FFFFFFFFFFFFFFF"), "carry"},
+	} {
+		b.Run(fmt.Sprintf("%d/%s", idx, tc.name), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				BenchU128Result = tc.a.Add(tc.b)
+			}
+		})
 	}
 }
 
@@ -705,70 +705,5 @@ func BenchmarkU128String(b *testing.B) {
 				BenchStringResult = bi.String()
 			}
 		})
-	}
-}
-
-var BenchUint641, BenchUint642 uint64 = 12093749018, 18927348917
-
-func BenchmarkUint64Mul(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		BenchUint64Result = BenchUint641 * BenchUint642
-	}
-}
-
-func BenchmarkUint64Add(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		BenchUint64Result = BenchUint641 + BenchUint642
-	}
-}
-
-func BenchmarkUint64Div(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		BenchUint64Result = BenchUint641 / BenchUint642
-	}
-}
-
-func BenchmarkUint64Equal(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		BenchBoolResult = BenchUint641 == BenchUint642
-	}
-}
-
-func BenchmarkBigIntMul(b *testing.B) {
-	var max big.Int
-	max.SetUint64(maxUint64)
-
-	for i := 0; i < b.N; i++ {
-		var dest big.Int
-		dest.Mul(&dest, &max)
-	}
-}
-
-func BenchmarkBigIntAdd(b *testing.B) {
-	var max big.Int
-	max.SetUint64(maxUint64)
-
-	for i := 0; i < b.N; i++ {
-		var dest big.Int
-		dest.Add(&dest, &max)
-	}
-}
-
-func BenchmarkBigIntDiv(b *testing.B) {
-	u := new(big.Int).SetUint64(maxUint64)
-	by := new(big.Int).SetUint64(121525124)
-	for i := 0; i < b.N; i++ {
-		var z big.Int
-		z.Div(u, by)
-	}
-}
-
-func BenchmarkBigIntCmpEqual(b *testing.B) {
-	var v1, v2 big.Int
-	v1.SetUint64(maxUint64)
-	v2.SetUint64(maxUint64)
-
-	for i := 0; i < b.N; i++ {
-		BenchIntResult = v1.Cmp(&v2)
 	}
 }

@@ -501,6 +501,24 @@ var (
 	BenchInt64Result int64
 )
 
+func BenchmarkI128Add(b *testing.B) {
+	for idx, tc := range []struct {
+		a, b I128
+		name string
+	}{
+		{zeroI128, zeroI128, "0+0"},
+		{MaxI128, MaxI128, "max+max"},
+		{i128s("0x7FFFFFFFFFFFFFFF"), i128s("0x7FFFFFFFFFFFFFFF"), "lo-only"},
+		{i128s("0xFFFFFFFFFFFFFFFF"), i128s("0x7FFFFFFFFFFFFFFF"), "carry"},
+	} {
+		b.Run(fmt.Sprintf("%d/%s", idx, tc.name), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				BenchI128Result = tc.a.Add(tc.b)
+			}
+		})
+	}
+}
+
 func BenchmarkI128FromBigInt(b *testing.B) {
 	for _, bi := range []*big.Int{
 		bigs("0"),
