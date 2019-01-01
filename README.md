@@ -18,6 +18,17 @@ Simple usage:
     b := a.Add(num.U128From64(5678))
     fmt.Printf("%x", x)
 
+
+Performance on x86-64/amd64 architectures is the focus. Performance
+improvements for other architectures will only be made if they are done without
+affecting the performance of amd64 processors. Code readability is less of a
+concern than raw performance, but where direct readability is sacrificed it
+should be exchanged for comments. Anything insufficiently explained is a bug.
+
+
+Testing
+-------
+
 **WARNING**: I have put a significant amount of effort into the testing of this
 library, but I am still finding and fixing bugs fairly regularly. Please be very
 careful if you choose to use this for production workloads, and take note of the

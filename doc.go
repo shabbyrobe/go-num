@@ -4,6 +4,8 @@ most of the big.Int API.
 
 U128 and I128 are value types; all operations return new values.
 
+Performance on x86-64/amd64 architectures is the focus.
+
 Simple example:
 
 	u1 := U128From64(math.MaxUint64)
