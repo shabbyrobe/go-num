@@ -2,7 +2,11 @@
 Package num provides uint128 (U128) and int128 (I128) 128-bit integer types,
 covering most of the big.Int API.
 
-U128 and I128 are value types; all operations return new values.
+`I128` is a signed "two's complement" implementation that should behave the
+same way on overflow as `int64`.
+
+`U128` and `I128` are immutable value types by default; operations always return a
+new value rather than mutating the existing one.
 
 Performance on x86-64/amd64 architectures is the focus.
 
