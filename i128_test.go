@@ -517,7 +517,11 @@ func BenchmarkI128FromBigInt(b *testing.B) {
 	}
 }
 
-var U64CastInput int64 = 0x7FFFFFFFFFFFFFFF
+var (
+	I64CastInput int64  = 0x7FFFFFFFFFFFFFFF
+	I32CastInput int32  = 0x7FFFFFFF
+	U64CastInput uint64 = 0x7FFFFFFFFFFFFFFF
+)
 
 func BenchmarkI128FromCast(b *testing.B) {
 	// Establish a baseline for a runtime 64-bit cast:
@@ -529,17 +533,17 @@ func BenchmarkI128FromCast(b *testing.B) {
 
 	b.Run("I128fromI64", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			BenchI128Result = I128From64(maxInt64)
+			BenchI128Result = I128From64(I64CastInput)
 		}
 	})
 	b.Run("I128fromU64", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			BenchI128Result = I128FromU64(maxUint64)
+			BenchI128Result = I128FromU64(U64CastInput)
 		}
 	})
 	b.Run("I128FromI32", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			BenchI128Result = I128From32(0x7FFFFFFF)
+			BenchI128Result = I128From32(I32CastInput)
 		}
 	})
 }
