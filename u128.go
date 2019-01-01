@@ -12,27 +12,37 @@ type U128 struct {
 }
 
 func U128FromRaw(hi, lo uint64) U128 { return U128{hi: hi, lo: lo} }
-func U128From64(v uint64) U128       { return U128{hi: 0, lo: v} }
-func U128From32(v uint32) U128       { return U128{hi: 0, lo: uint64(v)} }
-func U128From16(v uint16) U128       { return U128{hi: 0, lo: uint64(v)} }
-func U128From8(v uint8) U128         { return U128{hi: 0, lo: uint64(v)} }
+func U128From64(v uint64) U128       { return U128{lo: v} }
+func U128From32(v uint32) U128       { return U128{lo: uint64(v)} }
+func U128From16(v uint16) U128       { return U128{lo: uint64(v)} }
+func U128From8(v uint8) U128         { return U128{lo: uint64(v)} }
+func U128FromUint(v uint) U128       { return U128{lo: uint64(v)} }
+
+// U128FromI64 creates a U128 from an int64 if the conversion is possible, and
+// sets inRange to false if not.
+func U128FromI64(v int64) (out U128, inRange bool) {
+	if v < 0 {
+		return zeroU128, false
+	}
+	return U128{lo: uint64(v)}, true
+}
 
 // U128FromString creates a U128 from a string. Overflow truncates to MaxU128
-// and sets accurate to 'false'. Only decimal strings are currently supported.
-func U128FromString(s string) (out U128, accurate bool, err error) {
+// and sets inRange to 'false'. Only decimal strings are currently supported.
+func U128FromString(s string) (out U128, inRange bool, err error) {
 	// This deliberately limits the scope of what we accept as input just in case
 	// we decide to hand-roll our own fast decimal-only parser:
 	b, ok := new(big.Int).SetString(s, 10)
 	if !ok {
 		return out, false, fmt.Errorf("num: u128 string %q invalid", s)
 	}
-	out, accurate = U128FromBigInt(b)
-	return out, accurate, nil
+	out, inRange = U128FromBigInt(b)
+	return out, inRange, nil
 }
 
 // U128FromBigInt creates a U128 from a big.Int. Overflow truncates to MaxU128
-// and sets accurate to 'false'.
-func U128FromBigInt(v *big.Int) (out U128, accurate bool) {
+// and sets inRange to 'false'.
+func U128FromBigInt(v *big.Int) (out U128, inRange bool) {
 	if v.Sign() < 0 {
 		return out, false
 	}

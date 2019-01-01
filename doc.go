@@ -22,11 +22,12 @@ U128 and I128 can be created from a variety of sources:
 	U128FromBigInt(v *big.Int) (out U128, accurate bool)
 	U128FromFloat32(f float32) (out U128, inRange bool)
 	U128FromFloat64(f float64) (out U128, inRange bool)
+	U128FromI64(v int64) (out U128, inRange bool)
 
 U128 and I128 support the following formatting and marshalling interfaces:
 
 	- fmt.Formatter
-	- mt.Stringer
+	- fmt.Stringer
 	- json.Marshaler
 	- json.Unmarshaler
 	- encoding.TextMarshaler

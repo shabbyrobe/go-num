@@ -264,6 +264,26 @@ func TestU128FromFloat64(t *testing.T) {
 	}
 }
 
+func TestU128FromI64(t *testing.T) {
+	for idx, tc := range []struct {
+		in      int64
+		out     U128
+		inRange bool
+	}{
+		{0, zeroU128, true},
+		{-1, zeroU128, false},
+		{minInt64, zeroU128, false},
+		{maxInt64, u64(0x7fffffffffffffff), true},
+	} {
+		t.Run(fmt.Sprintf("%d/fromint64(%d)==%s", idx, tc.in, tc.out), func(t *testing.T) {
+			tt := assert.WrapTB(t)
+			rn, inRange := U128FromI64(tc.in)
+			tt.MustAssert(rn.Equal(tc.out))
+			tt.MustEqual(tc.inRange, inRange)
+		})
+	}
+}
+
 func TestU128FromSize(t *testing.T) {
 	tt := assert.WrapTB(t)
 	tt.MustEqual(U128From8(255), u128s("255"))

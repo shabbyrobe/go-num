@@ -35,6 +35,8 @@ func I128FromRaw(hi, lo uint64) I128 {
 	return I128{hi: hi, lo: lo}
 }
 
+func I128FromU64(v uint64) I128 { return I128{lo: v} }
+
 func I128From64(v int64) I128 {
 	var hi uint64
 	if v < 0 {
@@ -43,9 +45,41 @@ func I128From64(v int64) I128 {
 	return I128{hi: hi, lo: uint64(v)}
 }
 
-func I128From32(v int32) I128 { return I128From64(int64(v)) }
-func I128From16(v int16) I128 { return I128From64(int64(v)) }
-func I128From8(v int8) I128   { return I128From64(int64(v)) }
+// NOTE: I128From* functions are all unrolled versions of I128From64. Go 1.12
+// promised a better inliner and to some extent we got that, but it didn't pick
+// up that it could inline the calls to I128From64 as well.
+
+func I128From32(v int32) I128 {
+	var hi uint64
+	if v < 0 {
+		hi = maxUint64
+	}
+	return I128{hi: hi, lo: uint64(v)}
+}
+
+func I128From16(v int16) I128 {
+	var hi uint64
+	if v < 0 {
+		hi = maxUint64
+	}
+	return I128{hi: hi, lo: uint64(v)}
+}
+
+func I128From8(v int8) I128 {
+	var hi uint64
+	if v < 0 {
+		hi = maxUint64
+	}
+	return I128{hi: hi, lo: uint64(v)}
+}
+
+func I128FromInt(v int8) I128 {
+	var hi uint64
+	if v < 0 {
+		hi = maxUint64
+	}
+	return I128{hi: hi, lo: uint64(v)}
+}
 
 var (
 	minI128AsAbsU128 = U128{hi: 0x8000000000000000, lo: 0}
