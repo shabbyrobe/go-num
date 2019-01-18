@@ -450,6 +450,33 @@ func TestI128QuoRem(t *testing.T) {
 	}
 }
 
+func TestI128Scan(t *testing.T) {
+	for idx, tc := range []struct {
+		in  string
+		out I128
+		ok  bool
+	}{
+		{"1", i64(1), true},
+		{"0xFF", zeroI128, false},
+		{"-1", i64(-1), true},
+		{"170141183460469231731687303715884105728", zeroI128, false},
+		{"-170141183460469231731687303715884105729", zeroI128, false},
+	} {
+		t.Run(fmt.Sprintf("%d/%s==%d", idx, tc.in, tc.out), func(t *testing.T) {
+			tt := assert.WrapTB(t)
+			var result I128
+			n, err := fmt.Sscan(tc.in, &result)
+			tt.MustEqual(tc.ok, err == nil, "%v", err)
+			if err == nil {
+				tt.MustEqual(1, n)
+			} else {
+				tt.MustEqual(0, n)
+			}
+			tt.MustEqual(tc.out, result)
+		})
+	}
+}
+
 func TestI128Sign(t *testing.T) {
 	for idx, tc := range []struct {
 		a    I128

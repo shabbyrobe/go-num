@@ -184,6 +184,24 @@ func (i I128) String() string {
 	return v.String()
 }
 
+func (i *I128) Scan(state fmt.ScanState, verb rune) error {
+	t, err := state.Token(true, nil)
+	if err != nil {
+		return err
+	}
+	ts := string(t)
+
+	v, inRange, err := I128FromString(ts)
+	if err != nil {
+		return err
+	} else if !inRange {
+		return fmt.Errorf("num: i128 value %q is not in range", ts)
+	}
+	*i = v
+
+	return nil
+}
+
 func (i I128) Format(s fmt.State, c rune) {
 	// FIXME: This is good enough for now, but not forever.
 	i.AsBigInt().Format(s, c)
@@ -510,24 +528,24 @@ func (i I128) Rem(by I128) (r I128) {
 	return r
 }
 
-func (u I128) MarshalText() ([]byte, error) {
-	return []byte(u.String()), nil
+func (i I128) MarshalText() ([]byte, error) {
+	return []byte(i.String()), nil
 }
 
-func (u *I128) UnmarshalText(bts []byte) (err error) {
+func (i *I128) UnmarshalText(bts []byte) (err error) {
 	v, _, err := I128FromString(string(bts))
 	if err != nil {
 		return err
 	}
-	*u = v
+	*i = v
 	return nil
 }
 
-func (u I128) MarshalJSON() ([]byte, error) {
-	return []byte(`"` + u.String() + `"`), nil
+func (i I128) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + i.String() + `"`), nil
 }
 
-func (u *I128) UnmarshalJSON(bts []byte) (err error) {
+func (i *I128) UnmarshalJSON(bts []byte) (err error) {
 	if bts[0] == '"' {
 		ln := len(bts)
 		if bts[ln-1] != '"' {
@@ -540,6 +558,6 @@ func (u *I128) UnmarshalJSON(bts []byte) (err error) {
 	if err != nil {
 		return err
 	}
-	*u = v
+	*i = v
 	return nil
 }

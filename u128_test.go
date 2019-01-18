@@ -431,6 +431,45 @@ func TestU128Rsh(t *testing.T) {
 	}
 }
 
+func TestU128Scan(t *testing.T) {
+	for idx, tc := range []struct {
+		in  string
+		out U128
+		ok  bool
+	}{
+		{"1", u64(1), true},
+		{"0xFF", zeroU128, false},
+		{"-1", zeroU128, false},
+		{"340282366920938463463374607431768211456", zeroU128, false},
+	} {
+		t.Run(fmt.Sprintf("%d/%s==%d", idx, tc.in, tc.out), func(t *testing.T) {
+			tt := assert.WrapTB(t)
+			var result U128
+			n, err := fmt.Sscan(tc.in, &result)
+			tt.MustEqual(tc.ok, err == nil, "%v", err)
+			if err == nil {
+				tt.MustEqual(1, n)
+			} else {
+				tt.MustEqual(0, n)
+			}
+			tt.MustEqual(tc.out, result)
+		})
+	}
+
+	for idx, ws := range []string{" ", "\n", "   ", " \t "} {
+		t.Run(fmt.Sprintf("scan/3/%d", idx), func(t *testing.T) {
+			tt := assert.WrapTB(t)
+			var a, b, c U128
+			n, err := fmt.Sscan(strings.Join([]string{"123", "456", "789"}, ws), &a, &b, &c)
+			tt.MustEqual(3, n)
+			tt.MustOK(err)
+			tt.MustEqual("123", a.String())
+			tt.MustEqual("456", b.String())
+			tt.MustEqual("789", c.String())
+		})
+	}
+}
+
 func TestU128MarshalJSON(t *testing.T) {
 	tt := assert.WrapTB(t)
 	bts := make([]byte, 16)

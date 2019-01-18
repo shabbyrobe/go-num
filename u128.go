@@ -151,6 +151,24 @@ func (u U128) Format(s fmt.State, c rune) {
 	u.AsBigInt().Format(s, c)
 }
 
+func (u *U128) Scan(state fmt.ScanState, verb rune) error {
+	t, err := state.Token(true, nil)
+	if err != nil {
+		return err
+	}
+	ts := string(t)
+
+	v, inRange, err := U128FromString(ts)
+	if err != nil {
+		return err
+	} else if !inRange {
+		return fmt.Errorf("num: u128 value %q is not in range", ts)
+	}
+	*u = v
+
+	return nil
+}
+
 func (u U128) IntoBigInt(b *big.Int) {
 	switch intSize {
 	case 64:

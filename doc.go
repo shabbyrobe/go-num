@@ -34,6 +34,7 @@ U128 and I128 support the following formatting and marshalling interfaces:
 
 	- fmt.Formatter
 	- fmt.Stringer
+	- fmt.Scanner
 	- json.Marshaler
 	- json.Unmarshaler
 	- encoding.TextMarshaler
