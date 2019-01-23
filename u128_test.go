@@ -344,6 +344,22 @@ func TestU128Lsh(t *testing.T) {
 	}
 }
 
+func TestU128MarshalJSON(t *testing.T) {
+	tt := assert.WrapTB(t)
+	bts := make([]byte, 16)
+
+	for i := 0; i < 5000; i++ {
+		u := randU128(bts)
+
+		bts, err := json.Marshal(u)
+		tt.MustOK(err)
+
+		var result U128
+		tt.MustOK(json.Unmarshal(bts, &result))
+		tt.MustAssert(result.Equal(u))
+	}
+}
+
 func TestU128Mul(t *testing.T) {
 	tt := assert.WrapTB(t)
 
@@ -470,22 +486,6 @@ func TestU128Scan(t *testing.T) {
 	}
 }
 
-func TestU128MarshalJSON(t *testing.T) {
-	tt := assert.WrapTB(t)
-	bts := make([]byte, 16)
-
-	for i := 0; i < 5000; i++ {
-		u := randU128(bts)
-
-		bts, err := json.Marshal(u)
-		tt.MustOK(err)
-
-		var result U128
-		tt.MustOK(json.Unmarshal(bts, &result))
-		tt.MustAssert(result.Equal(u))
-	}
-}
-
 func BenchmarkU128Add(b *testing.B) {
 	for idx, tc := range []struct {
 		a, b U128
@@ -500,6 +500,58 @@ func BenchmarkU128Add(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				BenchU128Result = tc.a.Add(tc.b)
 			}
+		})
+	}
+}
+
+func TestSetBit(t *testing.T) {
+	for i := 0; i < 128; i++ {
+		t.Run(fmt.Sprintf("setcheck/%d", i), func(t *testing.T) {
+			tt := assert.WrapTB(t)
+			var u U128
+			tt.MustEqual(uint(0), u.Bit(i))
+			u = u.SetBit(i, 1)
+			tt.MustEqual(uint(1), u.Bit(i))
+			u = u.SetBit(i, 0)
+			tt.MustEqual(uint(0), u.Bit(i))
+		})
+	}
+
+	for idx, tc := range []struct {
+		in  U128
+		out U128
+		i   int
+		b   uint
+	}{
+		{in: u64(0), out: u128s("0b 1"), i: 0, b: 1},
+		{in: u64(0), out: u128s("0b 10"), i: 1, b: 1},
+		{in: u64(0), out: u128s("0x 8000000000000000"), i: 63, b: 1},
+		{in: u64(0), out: u128s("0x 10000000000000000"), i: 64, b: 1},
+		{in: u64(0), out: u128s("0x 20000000000000000"), i: 65, b: 1},
+	} {
+		t.Run(fmt.Sprintf("%d/%s/%d/%d", idx, tc.in, tc.i, tc.b), func(t *testing.T) {
+			tt := assert.WrapTB(t)
+			out := tc.in.SetBit(tc.i, tc.b)
+			tt.MustEqual(tc.out, out)
+		})
+	}
+
+	for idx, tc := range []struct {
+		i int
+		b uint
+	}{
+		{i: -1, b: 0},
+		{i: 128, b: 0},
+		{i: 0, b: 2},
+	} {
+		t.Run(fmt.Sprintf("failures/%d/%d/%d", idx, tc.i, tc.b), func(t *testing.T) {
+			defer func() {
+				if v := recover(); v == nil {
+					t.Fatal()
+				}
+			}()
+			var u U128
+			u.SetBit(tc.i, tc.b)
 		})
 	}
 }

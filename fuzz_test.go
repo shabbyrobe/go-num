@@ -25,6 +25,7 @@ const (
 	fuzzAnd              fuzzOp = "and"
 	fuzzAndNot           fuzzOp = "andnot"
 	fuzzAsFloat64        fuzzOp = "asfloat64"
+	fuzzBit              fuzzOp = "bit"
 	fuzzCmp              fuzzOp = "cmp"
 	fuzzDec              fuzzOp = "dec"
 	fuzzEqual            fuzzOp = "equal"
@@ -43,6 +44,7 @@ const (
 	fuzzRem              fuzzOp = "rem"
 	fuzzRsh              fuzzOp = "rsh"
 	fuzzString           fuzzOp = "string"
+	fuzzSetBit           fuzzOp = "setbit"
 	fuzzSub              fuzzOp = "sub"
 	fuzzXor              fuzzOp = "xor"
 )
@@ -60,12 +62,15 @@ var allFuzzTypes = []fuzzType{fuzzTypeU128, fuzzTypeI128}
 //
 // NEWOP: Update this list if a NEW op is added otherwise it won't be
 // enabled by default.
+//
+// Please keep this list alphabetised.
 var allFuzzOps = []fuzzOp{
 	fuzzAbs,
 	fuzzAdd,
 	fuzzAnd,
 	fuzzAndNot,
 	fuzzAsFloat64,
+	fuzzBit,
 	fuzzCmp,
 	fuzzDec,
 	fuzzEqual,
@@ -83,6 +88,7 @@ var allFuzzOps = []fuzzOp{
 	fuzzQuoRem,
 	fuzzRem,
 	fuzzRsh,
+	fuzzSetBit,
 	fuzzString,
 	fuzzSub,
 	fuzzXor,
@@ -97,6 +103,7 @@ type fuzzOps interface {
 	And() error
 	AndNot() error
 	AsFloat64() error
+	Bit() error
 	Cmp() error
 	Dec() error
 	Equal() error
@@ -114,6 +121,7 @@ type fuzzOps interface {
 	QuoRem() error
 	Rem() error
 	Rsh() error
+	SetBit() error
 	String() error
 	Sub() error
 	Xor() error
@@ -332,6 +340,8 @@ func TestFuzz(t *testing.T) {
 					err = fuzzImpl.AndNot()
 				case fuzzAsFloat64:
 					err = fuzzImpl.AsFloat64()
+				case fuzzBit:
+					err = fuzzImpl.Bit()
 				case fuzzCmp:
 					err = fuzzImpl.Cmp()
 				case fuzzDec:
@@ -366,6 +376,8 @@ func TestFuzz(t *testing.T) {
 					err = fuzzImpl.Rem()
 				case fuzzRsh:
 					err = fuzzImpl.Rsh()
+				case fuzzSetBit:
+					err = fuzzImpl.SetBit()
 				case fuzzString:
 					err = fuzzImpl.String()
 				case fuzzSub:
@@ -415,6 +427,12 @@ func (op fuzzOp) Print(operands ...*big.Int) string {
 	case fuzzInc, fuzzDec:
 		return fmt.Sprintf("%d%s", operands[0], op.String())
 
+	case fuzzSetBit:
+		return fmt.Sprintf("%d|(1<<%d)", operands[0], operands[1])
+
+	case fuzzBit:
+		return fmt.Sprintf("(%b>>%d)&1", operands[0], operands[1])
+
 	case fuzzNeg:
 		return fmt.Sprintf("-%d", operands[0])
 
@@ -450,7 +468,7 @@ func (op fuzzOp) Print(operands ...*big.Int) string {
 
 func (op fuzzOp) String() string {
 	// NEWOP: please add a short string representation of this op, as if
-	// the operands were in a sum.
+	// the operands were in a sum (if that's possible)
 	switch op {
 	case fuzzAbs:
 		return "|x|"
@@ -462,6 +480,8 @@ func (op fuzzOp) String() string {
 		return "&^"
 	case fuzzAsFloat64:
 		return "float64()"
+	case fuzzBit:
+		return "bit"
 	case fuzzCmp:
 		return "<=>"
 	case fuzzDec:
@@ -496,6 +516,8 @@ func (op fuzzOp) String() string {
 		return "%"
 	case fuzzRsh:
 		return ">>"
+	case fuzzSetBit:
+		return "setbit"
 	case fuzzString:
 		return "string"
 	case fuzzSub:
@@ -744,6 +766,26 @@ func (f fuzzU128) String() error {
 	return checkEqualString(u1, b1)
 }
 
+func (f fuzzU128) SetBit() error {
+	b1 := f.source.BigU128()
+	bt := int(f.source.Uintn(128))
+	bv := f.source.Uintn(2)
+	u1 := accU128FromBigInt(b1)
+
+	rb := new(big.Int).SetBit(b1, bt, bv)
+	ru := u1.SetBit(bt, bv)
+	return checkEqualU128(ru, rb)
+}
+
+func (f fuzzU128) Bit() error {
+	b1 := f.source.BigU128()
+	bt := int(f.source.Uintn(128))
+	u1 := accU128FromBigInt(b1)
+	return checkEqualInt(int(b1.Bit(bt)), int(u1.Bit(bt)))
+}
+
+// NEWOP: func (f fuzzU128) ...() error {}
+
 type fuzzI128 struct {
 	source *rando
 }
@@ -967,3 +1009,13 @@ func (f fuzzI128) String() error {
 	i1 := accI128FromBigInt(b1)
 	return checkEqualString(i1, b1)
 }
+
+func (f fuzzI128) SetBit() error {
+	return nil // Not supported by I128
+}
+
+func (f fuzzI128) Bit() error {
+	return nil // Not supported by I128
+}
+
+// NEWOP: func (f fuzzI128) ...() error {}

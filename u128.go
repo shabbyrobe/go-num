@@ -357,6 +357,43 @@ func (u U128) Xor(v U128) (out U128) {
 	return out
 }
 
+// Bit returns the value of the i'th bit of x. That is, it returns (x>>i)&1.
+// The bit index i must be 0 <= i < 128
+func (u U128) Bit(i int) uint {
+	if i < 0 || i >= 128 {
+		panic("num: bit out of range")
+	}
+	if i >= 64 {
+		return uint((u.hi >> uint(i-64)) & 1)
+	} else {
+		return uint((u.lo >> uint(i)) & 1)
+	}
+}
+
+// SetBit returns a U128 with u's i'th bit set to b (0 or 1).
+// If b is not 0 or 1, SetBit will panic. If i < 0, SetBit will panic.
+func (u U128) SetBit(i int, b uint) (out U128) {
+	if i < 0 || i >= 128 {
+		panic("num: bit out of range")
+	}
+	if b == 0 {
+		if i >= 64 {
+			u.hi = u.hi &^ (1 << uint(i-64))
+		} else {
+			u.lo = u.lo &^ (1 << uint(i))
+		}
+	} else if b == 1 {
+		if i >= 64 {
+			u.hi = u.hi | (1 << uint(i-64))
+		} else {
+			u.lo = u.lo | (1 << uint(i))
+		}
+	} else {
+		panic("num: bit value not 0 or 1")
+	}
+	return u
+}
+
 func (u U128) Lsh(n uint) (v U128) {
 	if n == 0 {
 		return u
