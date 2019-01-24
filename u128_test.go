@@ -372,6 +372,26 @@ func TestU128Mul(t *testing.T) {
 	tt.MustEqual(v.String(), v1.Mul(&v1, &v2).String())
 }
 
+func TestU128Not(t *testing.T) {
+	for idx, tc := range []struct {
+		a, b U128
+	}{
+		{u64(0), MaxU128},
+		{u64(1), u128s("340282366920938463463374607431768211454")},
+		{u64(2), u128s("340282366920938463463374607431768211453")},
+		{u64(maxUint64), u128s("340282366920938463444927863358058659840")},
+	} {
+		t.Run(fmt.Sprintf("%d/%s=^%s", idx, tc.a, tc.b), func(t *testing.T) {
+			tt := assert.WrapTB(t)
+			out := tc.a.Not()
+			tt.MustAssert(tc.b.Equal(out), "^%s != %s, found %s", tc.a, tc.b, out)
+
+			back := out.Not()
+			tt.MustAssert(tc.a.Equal(back), "^%s != %s, found %s", out, tc.a, back)
+		})
+	}
+}
+
 func TestU128QuoRem(t *testing.T) {
 	for idx, tc := range []struct {
 		u, by, q, r U128

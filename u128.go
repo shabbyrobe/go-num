@@ -345,6 +345,12 @@ func (u U128) AndNot(v U128) (out U128) {
 	return out
 }
 
+func (u U128) Not() (out U128) {
+	out.hi = ^u.hi
+	out.lo = ^u.lo
+	return out
+}
+
 func (u U128) Or(v U128) (out U128) {
 	out.hi = u.hi | v.hi
 	out.lo = u.lo | v.lo
@@ -355,6 +361,22 @@ func (u U128) Xor(v U128) (out U128) {
 	out.hi = u.hi ^ v.hi
 	out.lo = u.lo ^ v.lo
 	return out
+}
+
+// BitLen returns the length of the absolute value of u in bits. The bit length of 0 is 0.
+func (u U128) BitLen() int {
+	if u.hi > 0 {
+		return bits.Len64(u.hi) + 64
+	}
+	return bits.Len64(u.lo)
+}
+
+// OnesCount returns the number of one bits ("population count") in u.
+func (u U128) OnesCount() int {
+	if u.hi > 0 {
+		return bits.OnesCount64(u.hi) + 64
+	}
+	return bits.OnesCount64(u.lo)
 }
 
 // Bit returns the value of the i'th bit of x. That is, it returns (x>>i)&1.
