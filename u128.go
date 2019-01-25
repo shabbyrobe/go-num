@@ -11,12 +11,15 @@ type U128 struct {
 	hi, lo uint64
 }
 
+// U128FromRaw is the complement to U128.Raw(); it creates an U128 from two
+// uint64s representing the hi and lo bits.
 func U128FromRaw(hi, lo uint64) U128 { return U128{hi: hi, lo: lo} }
-func U128From64(v uint64) U128       { return U128{lo: v} }
-func U128From32(v uint32) U128       { return U128{lo: uint64(v)} }
-func U128From16(v uint16) U128       { return U128{lo: uint64(v)} }
-func U128From8(v uint8) U128         { return U128{lo: uint64(v)} }
-func U128FromUint(v uint) U128       { return U128{lo: uint64(v)} }
+
+func U128From64(v uint64) U128 { return U128{lo: v} }
+func U128From32(v uint32) U128 { return U128{lo: uint64(v)} }
+func U128From16(v uint16) U128 { return U128{lo: uint64(v)} }
+func U128From8(v uint8) U128   { return U128{lo: uint64(v)} }
+func U128FromUint(v uint) U128 { return U128{lo: uint64(v)} }
 
 // U128FromI64 creates a U128 from an int64 if the conversion is possible, and
 // sets inRange to false if not.
@@ -25,6 +28,14 @@ func U128FromI64(v int64) (out U128, inRange bool) {
 		return zeroU128, false
 	}
 	return U128{lo: uint64(v)}, true
+}
+
+func MustU128FromI64(v int64) (out U128) {
+	out, inRange := U128FromI64(v)
+	if !inRange {
+		panic(fmt.Errorf("num: int64 %d was not in valid U128 range", v))
+	}
+	return out
 }
 
 // U128FromString creates a U128 from a string. Overflow truncates to MaxU128
@@ -38,6 +49,17 @@ func U128FromString(s string) (out U128, inRange bool, err error) {
 	}
 	out, inRange = U128FromBigInt(b)
 	return out, inRange, nil
+}
+
+func MustU128FromString(s string) U128 {
+	out, inRange, err := U128FromString(s)
+	if err != nil {
+		panic(err)
+	}
+	if !inRange {
+		panic(fmt.Errorf("num: string %q was not in valid U128 range", s))
+	}
+	return out
 }
 
 // U128FromBigInt creates a U128 from a big.Int. Overflow truncates to MaxU128
@@ -88,8 +110,24 @@ func U128FromBigInt(v *big.Int) (out U128, inRange bool) {
 	}
 }
 
+func MustU128FromBigInt(b *big.Int) U128 {
+	out, inRange := U128FromBigInt(b)
+	if !inRange {
+		panic(fmt.Errorf("num: big.Int %d was not in valid U128 range", b))
+	}
+	return out
+}
+
 func U128FromFloat32(f float32) (out U128, inRange bool) {
 	return U128FromFloat64(float64(f))
+}
+
+func MustU128FromFloat32(f float32) U128 {
+	out, inRange := U128FromFloat32(f)
+	if !inRange {
+		panic(fmt.Errorf("num: float32 %f was not in valid U128 range", f))
+	}
+	return out
 }
 
 // U128FromFloat64 creates a U128 from a float64.
@@ -121,6 +159,14 @@ func U128FromFloat64(f float64) (out U128, inRange bool) {
 	} else {
 		return MaxU128, false
 	}
+}
+
+func MustU128FromFloat64(f float64) U128 {
+	out, inRange := U128FromFloat64(f)
+	if !inRange {
+		panic(fmt.Errorf("num: float64 %f was not in valid U128 range", f))
+	}
+	return out
 }
 
 // RandU128 generates an unsigned 128-bit random integer from an external source.

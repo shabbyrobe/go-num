@@ -43,6 +43,37 @@ func randU128(scratch []byte) U128 {
 	return u
 }
 
+func TestMustU128FromI64(t *testing.T) {
+	tt := assert.WrapTB(t)
+	assert := func(ok bool, expected U128, v int64) {
+		tt.Helper()
+		defer func() {
+			tt.Helper()
+			tt.MustAssert((recover() == nil) == ok)
+		}()
+		tt.MustEqual(expected, MustU128FromI64(v))
+	}
+
+	assert(true, u128s("1234"), 1234)
+	assert(false, u64(0), -1234)
+}
+
+func TestMustU128FromString(t *testing.T) {
+	tt := assert.WrapTB(t)
+	assert := func(ok bool, expected U128, s string) {
+		tt.Helper()
+		defer func() {
+			tt.Helper()
+			tt.MustAssert((recover() == nil) == ok)
+		}()
+		tt.MustEqual(expected, MustU128FromString(s))
+	}
+
+	assert(true, u128s("1234"), "1234")
+	assert(false, u64(0), "quack")
+	assert(false, u64(0), "120481092481092840918209481092380192830912830918230918")
+}
+
 func TestU128AsBigInt(t *testing.T) {
 	for idx, tc := range []struct {
 		a U128
@@ -286,9 +317,21 @@ func TestU128FromI64(t *testing.T) {
 
 func TestU128FromSize(t *testing.T) {
 	tt := assert.WrapTB(t)
+	assertInRange := func(expected U128) func(v U128, inRange bool) {
+		return func(v U128, inRange bool) {
+			tt.MustEqual(expected, v)
+			tt.MustAssert(inRange)
+		}
+	}
+
 	tt.MustEqual(U128From8(255), u128s("255"))
 	tt.MustEqual(U128From16(65535), u128s("65535"))
 	tt.MustEqual(U128From32(4294967295), u128s("4294967295"))
+
+	assertInRange(u128s("12345"))(U128FromFloat32(12345))
+	assertInRange(u128s("12345"))(U128FromFloat32(12345.6))
+	assertInRange(u128s("12345"))(U128FromFloat64(12345))
+	assertInRange(u128s("12345"))(U128FromFloat64(12345.6))
 }
 
 func TestU128Inc(t *testing.T) {

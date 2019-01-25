@@ -5,15 +5,32 @@ import (
 	"math/big"
 )
 
+const (
+	signBit = 0x8000000000000000
+)
+
 type I128 struct {
 	hi uint64
 	lo uint64
 }
 
-const (
-	signBit  = 0x8000000000000000
-	signMask = 0x7FFFFFFFFFFFFFFF
-)
+// I128FromRaw is the complement to I128.Raw(); it creates an I128 from two
+// uint64s representing the hi and lo bits.
+func I128FromRaw(hi, lo uint64) I128 { return I128{hi: hi, lo: lo} }
+
+func I128From64(v int64) I128 {
+	var hi uint64
+	if v < 0 {
+		hi = maxUint64
+	}
+	return I128{hi: hi, lo: uint64(v)}
+}
+
+func I128From32(v int32) I128   { return I128From64(int64(v)) }
+func I128From16(v int16) I128   { return I128From64(int64(v)) }
+func I128From8(v int8) I128     { return I128From64(int64(v)) }
+func I128FromInt(v int) I128    { return I128From64(int64(v)) }
+func I128FromU64(v uint64) I128 { return I128{lo: v} }
 
 // I128FromString creates a I128 from a string. Overflow truncates to
 // MaxI128/MinI128 and sets accurate to 'false'. Only decimal strings are
@@ -29,25 +46,16 @@ func I128FromString(s string) (out I128, accurate bool, err error) {
 	return out, accurate, nil
 }
 
-// I128FromRaw is the complement to I128.Raw(); it creates an I128 from two
-// uint64s representing the hi and lo bits.
-func I128FromRaw(hi, lo uint64) I128 {
-	return I128{hi: hi, lo: lo}
-}
-
-func I128From64(v int64) I128 {
-	var hi uint64
-	if v < 0 {
-		hi = maxUint64
+func MustI128FromString(s string) I128 {
+	out, inRange, err := I128FromString(s)
+	if err != nil {
+		panic(err)
 	}
-	return I128{hi: hi, lo: uint64(v)}
+	if !inRange {
+		panic(fmt.Errorf("num: string %q was not in valid I128 range", s))
+	}
+	return out
 }
-
-func I128From32(v int32) I128   { return I128From64(int64(v)) }
-func I128From16(v int16) I128   { return I128From64(int64(v)) }
-func I128From8(v int8) I128     { return I128From64(int64(v)) }
-func I128FromInt(v int) I128    { return I128From64(int64(v)) }
-func I128FromU64(v uint64) I128 { return I128{lo: v} }
 
 var (
 	minI128AsAbsU128 = U128{hi: 0x8000000000000000, lo: 0}
@@ -120,8 +128,24 @@ func I128FromBigInt(v *big.Int) (out I128, accurate bool) {
 	return out, accurate
 }
 
+func MustI128FromBigInt(b *big.Int) I128 {
+	out, inRange := I128FromBigInt(b)
+	if !inRange {
+		panic(fmt.Errorf("num: big.Int %d was not in valid I128 range", b))
+	}
+	return out
+}
+
 func I128FromFloat32(f float32) (out I128, inRange bool) {
 	return I128FromFloat64(float64(f))
+}
+
+func MustI128FromFloat32(f float32) I128 {
+	out, inRange := I128FromFloat32(f)
+	if !inRange {
+		panic(fmt.Errorf("num: float32 %f was not in valid I128 range", f))
+	}
+	return out
 }
 
 // I128FromFloat64 creates a I128 from a float64.
@@ -164,6 +188,14 @@ func I128FromFloat64(f float64) (out I128, inRange bool) {
 			return MaxI128, false
 		}
 	}
+}
+
+func MustI128FromFloat64(f float64) I128 {
+	out, inRange := I128FromFloat64(f)
+	if !inRange {
+		panic(fmt.Errorf("num: float64 %f was not in valid I128 range", f))
+	}
+	return out
 }
 
 // RandI128 generates a positive signed 128-bit random integer from an external
