@@ -70,6 +70,27 @@ func TestI128Abs(t *testing.T) {
 	}
 }
 
+func TestI128AbsU128(t *testing.T) {
+	for idx, tc := range []struct {
+		a I128
+		b U128
+	}{
+		{i64(0), u64(0)},
+		{i64(1), u64(1)},
+		{I128{lo: maxUint64}, U128{lo: maxUint64}},
+		{i64(-1), u64(1)},
+		{I128{hi: maxUint64}, U128{hi: 1}},
+
+		{MinI128, minI128AsAbsU128}, // Overflow does not affect this function
+	} {
+		t.Run(fmt.Sprintf("%d/|%s|=%s", idx, tc.a, tc.b), func(t *testing.T) {
+			tt := assert.WrapTB(t)
+			result := tc.a.AbsU128()
+			tt.MustEqual(tc.b, result)
+		})
+	}
+}
+
 func TestI128Add(t *testing.T) {
 	for idx, tc := range []struct {
 		a, b, c I128

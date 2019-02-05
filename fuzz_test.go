@@ -835,11 +835,19 @@ func (f fuzzI128) Abs() error {
 	b1 := f.source.BigI128()
 	i1 := accI128FromBigInt(b1)
 	rb := new(big.Int).Abs(b1)
-	ru := i1.Abs()
+
+	ib := rb
 	if rb.Cmp(maxBigI128) > 0 { // overflow is possible if you abs minBig128
-		rb = new(big.Int).Add(wrapBigU128, rb)
+		ib = new(big.Int).Add(wrapBigU128, rb)
 	}
-	return checkEqualI128(ru, rb)
+	if err := checkEqualI128(i1.Abs(), ib); err != nil {
+		return err
+	}
+	if err := checkEqualU128(i1.AbsU128(), rb); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (f fuzzI128) Inc() error {

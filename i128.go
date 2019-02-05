@@ -394,15 +394,38 @@ func (i I128) Neg() (v I128) {
 	return v
 }
 
+// Abs returns the absolute value of i as a signed integer.
+//
+// If i == MinI128, overflow occurs such that Abs(i) == MinI128.
+// If this is not desired, use AbsU128.
+//
 func (i I128) Abs() I128 {
 	if i.hi&signBit != 0 {
 		i.hi = ^i.hi
 		i.lo = ^(i.lo - 1)
-		if i.lo == 0 { // handle overflow
+		if i.lo == 0 { // handle carry
 			i.hi++
 		}
 	}
 	return i
+}
+
+// AbsU128 returns the absolute value of i as an unsigned integer. All
+// values of i are representable using this function, but the type is
+// changed.
+//
+func (i I128) AbsU128() U128 {
+	if i == MinI128 {
+		return minI128AsU128
+	}
+	if i.hi&signBit != 0 {
+		i.hi = ^i.hi
+		i.lo = ^(i.lo - 1)
+		if i.lo == 0 { // handle carry
+			i.hi++
+		}
+	}
+	return U128{hi: i.hi, lo: i.lo}
 }
 
 // Cmp compares u to n and returns:
