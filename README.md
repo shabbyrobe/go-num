@@ -29,10 +29,11 @@ should be exchanged for comments. Anything insufficiently explained is a bug.
 Testing
 -------
 
-**WARNING**: I have put a significant amount of effort into the testing of this
-library, but I am still finding and fixing bugs fairly regularly. Please be very
-careful if you choose to use this for production workloads, and take note of the
-clause regarding warranty in the LICENSE file.
+**DISCLAIMER**: I have put a significant amount of effort into the testing of this
+library and the coverage is very good (especially with the fuzz tester). Though I
+have not found much in the way of bugs in a while, there is still some more testing
+work left to do. Please be very careful if you choose to use this for
+production workloads, and take note of the clause regarding warranty in the LICENSE file.
 
 The whole library is aggressively fuzzed (see `fuzz_test.go`). Configure the fuzzer
 by playing with the following flags to `go test`:
