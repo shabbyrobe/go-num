@@ -142,7 +142,11 @@ type rando struct {
 
 func (r *rando) Operands() []*big.Int { return r.operands }
 
-func (r *rando) Clear() {
+func (r *rando) NextOp(op fuzzOp, configuredIterations int) (opIterations int) {
+	return configuredIterations
+}
+
+func (r *rando) NextTest() {
 	for i := range r.operands {
 		r.operands[i] = nil
 	}
@@ -329,8 +333,10 @@ func TestFuzz(t *testing.T) {
 		var failures = make([]int, len(runFuzzOps))
 
 		for opIdx, op := range runFuzzOps {
-			for i := 0; i < fuzzIterations; i++ {
-				source.Clear()
+			opIterations := source.NextOp(op, fuzzIterations)
+
+			for i := 0; i < opIterations; i++ {
+				source.NextTest()
 
 				var err error
 

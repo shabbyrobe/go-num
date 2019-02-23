@@ -43,6 +43,31 @@ func randU128(scratch []byte) U128 {
 	return u
 }
 
+func TestLargerSmallerU128(t *testing.T) {
+	for idx, tc := range []struct {
+		a, b        U128
+		firstLarger bool
+	}{
+		{u64(0), u64(1), false},
+		{MaxU128, u64(1), true},
+		{u64(1), u64(1), false},
+		{u64(2), u64(1), true},
+		{u128s("0xFFFFFFFF FFFFFFFF"), u128s("0x1 00000000 00000000"), false},
+		{u128s("0x1 00000000 00000000"), u128s("0xFFFFFFFF FFFFFFFF"), true},
+	} {
+		t.Run(fmt.Sprintf("%d", idx), func(t *testing.T) {
+			tt := assert.WrapTB(t)
+			if tc.firstLarger {
+				tt.MustEqual(tc.a, LargerU128(tc.a, tc.b))
+				tt.MustEqual(tc.b, SmallerU128(tc.a, tc.b))
+			} else {
+				tt.MustEqual(tc.b, LargerU128(tc.a, tc.b))
+				tt.MustEqual(tc.a, SmallerU128(tc.a, tc.b))
+			}
+		})
+	}
+}
+
 func TestMustU128FromI64(t *testing.T) {
 	tt := assert.WrapTB(t)
 	assert := func(ok bool, expected U128, v int64) {

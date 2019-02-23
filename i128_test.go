@@ -3,6 +3,7 @@ package num
 import (
 	"encoding/binary"
 	"encoding/json"
+	"encoding/xml"
 	"fmt"
 	"math"
 	"math/big"
@@ -118,7 +119,7 @@ func TestI128Add(t *testing.T) {
 	}
 }
 
-func TestI128AsBigInt(t *testing.T) {
+func TestI128AsBigIntAndIntoBigInt(t *testing.T) {
 	for idx, tc := range []struct {
 		a I128
 		b *big.Int
@@ -136,6 +137,10 @@ func TestI128AsBigInt(t *testing.T) {
 			tt := assert.WrapTB(t)
 			v := tc.a.AsBigInt()
 			tt.MustAssert(tc.b.Cmp(v) == 0, "found: %s", v)
+
+			var v2 big.Int
+			tc.a.IntoBigInt(&v2)
+			tt.MustAssert(tc.b.Cmp(&v2) == 0, "found: %s", v2)
 		})
 	}
 }
@@ -376,6 +381,31 @@ func TestI128MarshalJSON(t *testing.T) {
 		var result I128
 		tt.MustOK(json.Unmarshal(bts, &result))
 		tt.MustAssert(result.Equal(n))
+	}
+}
+
+func TestI128MarshalText(t *testing.T) {
+	tt := assert.WrapTB(t)
+	bts := make([]byte, 16)
+
+	type Encoded struct {
+		Num I128
+	}
+
+	for i := 0; i < 5000; i++ {
+		n := randI128(bts)
+
+		var v = Encoded{Num: n}
+
+		out, err := xml.Marshal(&v)
+		tt.MustOK(err)
+
+		tt.MustEqual(fmt.Sprintf("<Encoded><Num>%s</Num></Encoded>", n.String()), string(out))
+
+		var v2 Encoded
+		tt.MustOK(xml.Unmarshal(out, &v2))
+
+		tt.MustEqual(v2.Num, n)
 	}
 }
 
