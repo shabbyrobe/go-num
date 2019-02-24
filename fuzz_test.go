@@ -134,160 +134,6 @@ type fuzzOps interface {
 	Xor() error
 }
 
-// classic rando!
-type rando struct {
-	operands []*big.Int
-	rng      *rand.Rand
-
-	// This test has run; subsequent rando requests should fail:
-	testHasRun bool
-}
-
-func (r *rando) Operands() []*big.Int { return r.operands }
-
-func (r *rando) NextOp(op fuzzOp, configuredIterations int) (opIterations int) {
-	return configuredIterations
-}
-
-func (r *rando) NextTest() {
-	r.testHasRun = false
-	for i := range r.operands {
-		r.operands[i] = nil
-	}
-	r.operands = r.operands[:0]
-}
-
-func (r *rando) ensureOnePerTest() {
-	if r.testHasRun {
-		panic("may only call source once per test")
-	}
-	r.testHasRun = true
-}
-
-// samesies returns the number of arguments up to n - 1 that should be the same
-// for this request. Only used for randos that are 'x2', 'x3', etc.
-//
-// We need this because the chance of even two random 128-bit operands being
-// the same is unfathomable.
-func (r *rando) samesies(n int) int {
-	const samesiesChance = 0.03
-	if r.rng.Float64() < samesiesChance {
-		return r.rng.Intn(n)
-	}
-	return 0
-}
-
-func (r *rando) BigU128x2() (b1, b2 *big.Int) {
-	r.ensureOnePerTest()
-
-	b1 = r.bigU128()
-	if r.samesies(2) > 0 {
-		b2 = new(big.Int).Set(b1)
-	} else {
-		b2 = r.bigU128()
-	}
-	r.operands = append(r.operands, b2)
-	return b1, b2
-}
-
-func (r *rando) BigI128x2() (b1, b2 *big.Int) {
-	r.ensureOnePerTest()
-
-	b1 = r.bigI128()
-	if r.samesies(2) > 0 {
-		b2 = new(big.Int).Set(b1)
-	} else {
-		b2 = r.bigI128()
-	}
-	r.operands = append(r.operands, b2)
-	return b1, b2
-}
-
-func (r *rando) BigU128AndBitSize() (*big.Int, uint) {
-	r.ensureOnePerTest()
-	return r.bigU128(), r.uintn(128)
-}
-
-func (r *rando) BigU128AndBitSizeAndBitValue() (*big.Int, uint, uint) {
-	r.ensureOnePerTest()
-	return r.bigU128(), r.uintn(128), r.uintn(2)
-}
-
-func (r *rando) BigI128() *big.Int {
-	r.ensureOnePerTest()
-	return r.bigI128()
-}
-
-func (r *rando) BigU128() *big.Int {
-	r.ensureOnePerTest()
-	return r.bigU128()
-}
-
-func (r *rando) intn(n int) int {
-	v := int(r.rng.Intn(n))
-	r.operands = append(r.operands, new(big.Int).SetInt64(int64(v)))
-	return v
-}
-
-func (r *rando) uintn(n int) uint {
-	v := uint(r.rng.Intn(n))
-	r.operands = append(r.operands, new(big.Int).SetUint64(uint64(v)))
-	return v
-}
-
-func (r *rando) bigU128() *big.Int {
-	var v = new(big.Int)
-	bits := r.rng.Intn(129) - 1 // 128 bits, +1 for "0 bits"
-	if bits < 0 {
-		return v // "-1 bits" == "0"
-	} else if bits <= 64 {
-		v = v.Rand(r.rng, maxBigUint64)
-	} else {
-		v = v.Rand(r.rng, maxBigU128)
-	}
-	v.And(v, masks[bits])
-	v.SetBit(v, bits, 1)
-	r.operands = append(r.operands, v)
-	return v
-}
-
-func (r *rando) bigI128() *big.Int {
-	neg := r.rng.Intn(2) == 1
-
-	var v = new(big.Int)
-	bits := r.rng.Intn(128) - 1 // 127 bits, 1 sign bit (skipped), +1 for "0 bits"
-	if bits < 0 {
-		return v
-	} else if bits <= 64 {
-		v = v.Rand(r.rng, maxBigUint64)
-	} else {
-		v = v.Rand(r.rng, maxBigU128)
-	}
-	v.And(v, masks[bits])
-	v.SetBit(v, bits, 1)
-	if neg {
-		v.Neg(v)
-	}
-
-	r.operands = append(r.operands, v)
-	return v
-}
-
-// masks contains a pre-calculated set of 128-bit masks for use when generating
-// random U128s/I128s. It's used to ensure we generate an even distribution of
-// bit sizes.
-var masks [128]*big.Int
-
-func init() {
-	for i := 0; i < 128; i++ {
-		bi := new(big.Int)
-		for b := 0; b <= i; b++ {
-			bi.SetBit(bi, b, 1)
-		}
-		masks[i] = bi
-	}
-}
-
 func checkEqualInt(u int, b int) error {
 	if u != b {
 		return fmt.Errorf("128(%v) != big(%v)", u, b)
@@ -348,7 +194,7 @@ func TestFuzz(t *testing.T) {
 	// fuzzTypesActive comes from the -num.fuzzop flag, in TestMain:
 	var runFuzzTypes = fuzzTypesActive
 
-	var source = &rando{rng: globalRNG} // Classic rando!
+	var source = newRando(globalRNG) // Classic rando!
 	var totalFailures int
 
 	var fuzzTypes []fuzzOps
@@ -1097,3 +943,303 @@ func (f fuzzI128) String() error {
 }
 
 // NEWOP: func (f fuzzI128) ...() error {}
+
+type big128GenKind int
+
+const (
+	big128Zero big128GenKind = 0
+	big128Bits big128GenKind = 1
+	big128Same big128GenKind = 2
+)
+
+type bigU128Gen struct {
+	kind big128GenKind
+	bits int
+}
+
+func (gen bigU128Gen) Value(r *rando) (v *big.Int) {
+	switch gen.kind {
+	case big128Zero:
+		v = new(big.Int)
+
+	case big128Bits:
+		v = new(big.Int)
+		if gen.bits <= 0 {
+			panic("misconfigured bits")
+		} else if gen.bits <= 64 {
+			v = v.Rand(r.rng, maxBigUint64)
+		} else {
+			v = v.Rand(r.rng, maxBigU128)
+		}
+		idx := gen.bits - 1
+		v.And(v, masks[idx])
+		v.SetBit(v, idx, 1)
+
+	case big128Same:
+		oper := r.Operands()
+		v = oper[len(oper)-1]
+
+	default:
+		panic("unknown gen kind")
+	}
+
+	r.operands = append(r.operands, v)
+
+	return v
+}
+
+type bigI128Gen struct {
+	kind big128GenKind
+	bits int
+	neg  bool
+}
+
+func (gen bigI128Gen) Value(r *rando) (v *big.Int) {
+	switch gen.kind {
+	case big128Zero:
+		v = new(big.Int)
+
+	case big128Bits:
+		v = new(big.Int)
+		if gen.bits <= 0 || gen.bits > 127 { // 128th bit is set aside for the sign
+			panic("misconfigured bits")
+		} else if gen.bits <= 64 {
+			v = v.Rand(r.rng, maxBigUint64)
+		} else {
+			v = v.Rand(r.rng, maxBigU128)
+		}
+		idx := gen.bits - 1
+		v.And(v, masks[idx])
+		v.SetBit(v, idx, 1)
+		if gen.neg {
+			v.Neg(v)
+		}
+
+	case big128Same:
+		oper := r.Operands()
+		v = oper[len(oper)-1]
+
+	default:
+		panic("unknown gen kind")
+	}
+
+	r.operands = append(r.operands, v)
+
+	return v
+}
+
+// rando provides schemes for argument generation with heuristics that try to
+// ensure coverage of the differences that matter.
+//
+// classic rando!
+type rando struct {
+	operands []*big.Int
+	rng      *rand.Rand
+
+	bigU128Schemes []bigU128Gen
+	bigU128Cur     int
+
+	bigI128Schemes []bigI128Gen
+	bigI128Cur     int
+
+	bigU128x2Schemes [][2]bigU128Gen
+	bigU128x2Cur     int
+
+	bigI128x2Schemes [][2]bigI128Gen
+	bigI128x2Cur     int
+
+	// This test has run; subsequent rando requests should fail until NewTest
+	// is called again:
+	testHasRun bool
+}
+
+func newRando(rng *rand.Rand) *rando {
+	// Number of times to repeat the "both arguments identical" test.
+	// We need this because the chance of even two random 128-bit operands being
+	// the same is unfathomable.
+	samesies := 5
+
+	r := &rando{ // classic rando!
+		rng: rng,
+	}
+
+	{ // build bigU128Schemes
+		r.bigU128Schemes = append(r.bigU128Schemes, bigU128Gen{kind: big128Zero})
+		for i := 1; i <= 128; i++ {
+			r.bigU128Schemes = append(r.bigU128Schemes, bigU128Gen{kind: big128Bits, bits: i})
+		}
+	}
+
+	{ // build bigU128x2Schemes
+		for _, u1 := range r.bigU128Schemes {
+			for _, u2 := range r.bigU128Schemes {
+				r.bigU128x2Schemes = append(r.bigU128x2Schemes, [2]bigU128Gen{u1, u2})
+			}
+			for i := 0; i < samesies; i++ {
+				r.bigU128x2Schemes = append(r.bigU128x2Schemes, [2]bigU128Gen{u1, bigU128Gen{kind: big128Same}})
+			}
+		}
+	}
+
+	{ // build bigI128Schemes
+		r.bigI128Schemes = append(r.bigI128Schemes, bigI128Gen{kind: big128Zero})
+		for i := 1; i <= 127; i++ {
+			for n := 0; n < 2; n++ {
+				r.bigI128Schemes = append(r.bigI128Schemes, bigI128Gen{kind: big128Bits, bits: i, neg: n == 0})
+			}
+		}
+	}
+
+	{ // build bigI128x2Schemes
+		for _, u1 := range r.bigI128Schemes {
+			for _, u2 := range r.bigI128Schemes {
+				r.bigI128x2Schemes = append(r.bigI128x2Schemes, [2]bigI128Gen{u1, u2})
+			}
+			for i := 0; i < samesies; i++ {
+				r.bigI128x2Schemes = append(r.bigI128x2Schemes, [2]bigI128Gen{u1, bigI128Gen{kind: big128Same}})
+			}
+		}
+	}
+
+	return r
+}
+
+func (r *rando) Operands() []*big.Int { return r.operands }
+
+func (r *rando) NextOp(op fuzzOp, configuredIterations int) (opIterations int) {
+	r.bigU128x2Cur = 0
+	r.bigU128Cur = 0
+	return configuredIterations
+}
+
+func (r *rando) NextTest() {
+	r.testHasRun = false
+	for i := range r.operands {
+		r.operands[i] = nil
+	}
+	r.operands = r.operands[:0]
+}
+
+func (r *rando) ensureOnePerTest() {
+	if r.testHasRun {
+		panic("may only call source once per test")
+	}
+	r.testHasRun = true
+}
+
+func (r *rando) BigU128x2() (b1, b2 *big.Int) {
+	r.ensureOnePerTest()
+
+	schemes := r.bigU128x2Schemes[r.bigU128x2Cur]
+	r.bigU128x2Cur++
+	if r.bigU128x2Cur >= len(r.bigU128x2Schemes) {
+		r.bigU128x2Cur = 0
+	}
+	return schemes[0].Value(r), schemes[1].Value(r)
+}
+
+func (r *rando) BigI128x2() (b1, b2 *big.Int) {
+	r.ensureOnePerTest()
+
+	schemes := r.bigI128x2Schemes[r.bigI128x2Cur]
+	r.bigI128x2Cur++
+	if r.bigI128x2Cur >= len(r.bigI128x2Schemes) {
+		r.bigI128x2Cur = 0
+	}
+	return schemes[0].Value(r), schemes[1].Value(r)
+}
+
+func (r *rando) BigU128AndBitSize() (*big.Int, uint) {
+	r.ensureOnePerTest()
+	return r.bigU128(), r.uintn(128)
+}
+
+func (r *rando) BigU128AndBitSizeAndBitValue() (*big.Int, uint, uint) {
+	r.ensureOnePerTest()
+	return r.bigU128(), r.uintn(128), r.uintn(2)
+}
+
+func (r *rando) BigI128() *big.Int {
+	r.ensureOnePerTest()
+	scheme := r.bigI128Schemes[r.bigI128Cur]
+	r.bigI128Cur++
+	if r.bigI128Cur >= len(r.bigI128Schemes) {
+		r.bigI128Cur = 0
+	}
+	return scheme.Value(r)
+}
+
+func (r *rando) BigU128() *big.Int {
+	r.ensureOnePerTest()
+	scheme := r.bigU128Schemes[r.bigU128Cur]
+	r.bigU128Cur++
+	if r.bigU128Cur >= len(r.bigU128Schemes) {
+		r.bigU128Cur = 0
+	}
+	return scheme.Value(r)
+}
+
+func (r *rando) intn(n int) int {
+	v := int(r.rng.Intn(n))
+	r.operands = append(r.operands, new(big.Int).SetInt64(int64(v)))
+	return v
+}
+
+func (r *rando) uintn(n int) uint {
+	v := uint(r.rng.Intn(n))
+	r.operands = append(r.operands, new(big.Int).SetUint64(uint64(v)))
+	return v
+}
+
+func (r *rando) bigU128() *big.Int {
+	var v = new(big.Int)
+	bits := r.rng.Intn(129) - 1 // 128 bits, +1 for "0 bits"
+	if bits < 0 {
+		return v // "-1 bits" == "0"
+	} else if bits <= 64 {
+		v = v.Rand(r.rng, maxBigUint64)
+	} else {
+		v = v.Rand(r.rng, maxBigU128)
+	}
+	v.And(v, masks[bits])
+	v.SetBit(v, bits, 1)
+	r.operands = append(r.operands, v)
+	return v
+}
+
+func (r *rando) bigI128() *big.Int {
+	neg := r.rng.Intn(2) == 1
+
+	var v = new(big.Int)
+	bits := r.rng.Intn(128) - 1 // 127 bits, 1 sign bit (skipped), +1 for "0 bits"
+	if bits < 0 {
+		return v
+	} else if bits <= 64 {
+		v = v.Rand(r.rng, maxBigUint64)
+	} else {
+		v = v.Rand(r.rng, maxBigU128)
+	}
+	v.And(v, masks[bits])
+	v.SetBit(v, bits, 1)
+	if neg {
+		v.Neg(v)
+	}
+
+	r.operands = append(r.operands, v)
+	return v
+}
+
+// masks contains a pre-calculated set of 128-bit masks for use when generating
+// random U128s/I128s. It's used to ensure we generate an even distribution of
+// bit sizes.
+var masks [128]*big.Int
+
+func init() {
+	for i := 0; i < 128; i++ {
+		bi := new(big.Int)
+		for b := 0; b <= i; b++ {
+			bi.SetBit(bi, b, 1)
+		}
+		masks[i] = bi
+	}
+}
