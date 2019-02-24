@@ -138,6 +138,9 @@ type fuzzOps interface {
 type rando struct {
 	operands []*big.Int
 	rng      *rand.Rand
+
+	// This test has run; subsequent rando requests should fail:
+	testHasRun bool
 }
 
 func (r *rando) Operands() []*big.Int { return r.operands }
@@ -147,22 +150,18 @@ func (r *rando) NextOp(op fuzzOp, configuredIterations int) (opIterations int) {
 }
 
 func (r *rando) NextTest() {
+	r.testHasRun = false
 	for i := range r.operands {
 		r.operands[i] = nil
 	}
 	r.operands = r.operands[:0]
 }
 
-func (r *rando) Intn(n int) int {
-	v := int(r.rng.Intn(n))
-	r.operands = append(r.operands, new(big.Int).SetInt64(int64(v)))
-	return v
-}
-
-func (r *rando) Uintn(n int) uint {
-	v := uint(r.rng.Intn(n))
-	r.operands = append(r.operands, new(big.Int).SetUint64(uint64(v)))
-	return v
+func (r *rando) ensureOnePerTest() {
+	if r.testHasRun {
+		panic("may only call source once per test")
+	}
+	r.testHasRun = true
 }
 
 // samesies returns the number of arguments up to n - 1 that should be the same
@@ -179,28 +178,64 @@ func (r *rando) samesies(n int) int {
 }
 
 func (r *rando) BigU128x2() (b1, b2 *big.Int) {
-	b1 = r.BigU128()
+	r.ensureOnePerTest()
+
+	b1 = r.bigU128()
 	if r.samesies(2) > 0 {
 		b2 = new(big.Int).Set(b1)
 	} else {
-		b2 = r.BigU128()
+		b2 = r.bigU128()
 	}
 	r.operands = append(r.operands, b2)
 	return b1, b2
 }
 
 func (r *rando) BigI128x2() (b1, b2 *big.Int) {
-	b1 = r.BigI128()
+	r.ensureOnePerTest()
+
+	b1 = r.bigI128()
 	if r.samesies(2) > 0 {
 		b2 = new(big.Int).Set(b1)
 	} else {
-		b2 = r.BigI128()
+		b2 = r.bigI128()
 	}
 	r.operands = append(r.operands, b2)
 	return b1, b2
 }
 
+func (r *rando) BigU128AndBitSize() (*big.Int, uint) {
+	r.ensureOnePerTest()
+	return r.bigU128(), r.uintn(128)
+}
+
+func (r *rando) BigU128AndBitSizeAndBitValue() (*big.Int, uint, uint) {
+	r.ensureOnePerTest()
+	return r.bigU128(), r.uintn(128), r.uintn(2)
+}
+
+func (r *rando) BigI128() *big.Int {
+	r.ensureOnePerTest()
+	return r.bigI128()
+}
+
 func (r *rando) BigU128() *big.Int {
+	r.ensureOnePerTest()
+	return r.bigU128()
+}
+
+func (r *rando) intn(n int) int {
+	v := int(r.rng.Intn(n))
+	r.operands = append(r.operands, new(big.Int).SetInt64(int64(v)))
+	return v
+}
+
+func (r *rando) uintn(n int) uint {
+	v := uint(r.rng.Intn(n))
+	r.operands = append(r.operands, new(big.Int).SetUint64(uint64(v)))
+	return v
+}
+
+func (r *rando) bigU128() *big.Int {
 	var v = new(big.Int)
 	bits := r.rng.Intn(129) - 1 // 128 bits, +1 for "0 bits"
 	if bits < 0 {
@@ -216,7 +251,7 @@ func (r *rando) BigU128() *big.Int {
 	return v
 }
 
-func (r *rando) BigI128() *big.Int {
+func (r *rando) bigI128() *big.Int {
 	neg := r.rng.Intn(2) == 1
 
 	var v = new(big.Int)
@@ -268,8 +303,15 @@ func checkEqualBool(u bool, b bool) error {
 }
 
 func checkEqualU128(u U128, b *big.Int) error {
-	if u.String() != b.String() {
+	if u.AsBigInt().Cmp(b) != 0 {
 		return fmt.Errorf("u128(%s) != big(%s)", u.String(), b.String())
+	}
+	return nil
+}
+
+func checkEqualI128(i I128, b *big.Int) error {
+	if i.AsBigInt().Cmp(b) != 0 {
+		return fmt.Errorf("i128(%s) != big(%s)", i.String(), b.String())
 	}
 	return nil
 }
@@ -295,13 +337,6 @@ func checkFloat(orig *big.Int, result float64, bf *big.Float) error {
 		return fmt.Errorf("|128(%f) - big(%f)| = %s, > %s", result, bf,
 			cleanFloatStr(fmt.Sprintf("%.20f", diff)),
 			cleanFloatStr(fmt.Sprintf("%.20f", floatDiffLimit)))
-	}
-	return nil
-}
-
-func checkEqualI128(i I128, b *big.Int) error {
-	if i.String() != b.String() {
-		return fmt.Errorf("i128(%s) != big(%s)", i.String(), b.String())
 	}
 	return nil
 }
@@ -723,8 +758,7 @@ func (f fuzzU128) Xor() error {
 }
 
 func (f fuzzU128) Lsh() error {
-	b1 := f.source.BigU128()
-	by := f.source.Uintn(128)
+	b1, by := f.source.BigU128AndBitSize()
 	u1 := accU128FromBigInt(b1)
 	rb := new(big.Int).Lsh(b1, by)
 	rb.And(rb, maxBigU128)
@@ -733,8 +767,7 @@ func (f fuzzU128) Lsh() error {
 }
 
 func (f fuzzU128) Rsh() error {
-	b1 := f.source.BigU128()
-	by := f.source.Uintn(128)
+	b1, by := f.source.BigU128AndBitSize()
 	u1 := accU128FromBigInt(b1)
 	rb := new(big.Int).Rsh(b1, by)
 	ru := u1.Rsh(by)
@@ -786,21 +819,17 @@ func (f fuzzU128) String() error {
 }
 
 func (f fuzzU128) SetBit() error {
-	b1 := f.source.BigU128()
-	bt := int(f.source.Uintn(128))
-	bv := f.source.Uintn(2)
+	b1, bt, bv := f.source.BigU128AndBitSizeAndBitValue()
 	u1 := accU128FromBigInt(b1)
-
-	rb := new(big.Int).SetBit(b1, bt, bv)
-	ru := u1.SetBit(bt, bv)
+	rb := new(big.Int).SetBit(b1, int(bt), bv)
+	ru := u1.SetBit(int(bt), bv)
 	return checkEqualU128(ru, rb)
 }
 
 func (f fuzzU128) Bit() error {
-	b1 := f.source.BigU128()
-	bt := int(f.source.Uintn(128))
+	b1, bt := f.source.BigU128AndBitSize()
 	u1 := accU128FromBigInt(b1)
-	return checkEqualInt(int(b1.Bit(bt)), int(u1.Bit(bt)))
+	return checkEqualInt(int(b1.Bit(int(bt))), int(u1.Bit(int(bt))))
 }
 
 func (f fuzzU128) Not() error {
