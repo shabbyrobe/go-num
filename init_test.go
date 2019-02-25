@@ -122,3 +122,21 @@ func randomBigU128(rng *rand.Rand) *big.Int {
 	v.SetBit(v, bits, 1)
 	return v
 }
+
+func simulateBigU128Overflow(rb *big.Int) *big.Int {
+	if rb.Cmp(maxBigI128) > 0 {
+		rb = new(big.Int).Sub(rb, wrapBigU128) // simulate overflow
+	} else if rb.Cmp(big0) < 0 {
+		rb = new(big.Int).Add(rb, wrapBigU128) // simulate underflow
+	}
+	return rb
+}
+
+func simulateBigI128Overflow(rb *big.Int) *big.Int {
+	if rb.Cmp(wrapOverBigI128) >= 0 {
+		rb = new(big.Int).Sub(rb, wrapBigU128) // simulate overflow
+	} else if rb.Cmp(wrapUnderBigI128) <= 0 {
+		rb = new(big.Int).Add(rb, wrapBigU128) // simulate underflow
+	}
+	return rb
+}

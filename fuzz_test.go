@@ -11,8 +11,10 @@ import (
 type fuzzOp string
 type fuzzType string
 
-// This is the equivalent of passing -num.fuzziter=10000 to 'go test':
-const fuzzDefaultIterations = 10000
+// fuzzDefaultIterations should be configured to guarantee all of the argument
+// schemes execute at least once for each op in a reasonable time.
+// This is the equivalent of passing -num.fuzziter=<...> to 'go test':
+const fuzzDefaultIterations = 20000
 
 // These ops are all enabled by default. You can instead pass them explicitly
 // on the command line like so: '-num.fuzzop=add -num.fuzzop=sub', or you can
@@ -210,8 +212,10 @@ func TestFuzz(t *testing.T) {
 		}
 	}
 
-	for _, fuzzImpl := range fuzzTypes {
-		var failures = make([]int, len(runFuzzOps))
+	var failures = make([][]int, len(fuzzTypes))
+
+	for implIdx, fuzzImpl := range fuzzTypes {
+		failures[implIdx] = make([]int, len(runFuzzOps))
 
 		for opIdx, op := range runFuzzOps {
 			opIterations := source.NextOp(op, fuzzIterations)
@@ -287,13 +291,33 @@ func TestFuzz(t *testing.T) {
 				}
 
 				if err != nil {
-					failures[opIdx]++
-					t.Logf("%s: %s\n", op.Print(source.Operands()...), err)
+					failures[implIdx][opIdx]++
+					t.Logf("impl %s: %s\n%s\n\n", fuzzImpl.Name(), op.Print(source.Operands()...), err)
 				}
 			}
 		}
+	}
 
-		for opIdx, cnt := range failures {
+	if len(failures) > 0 {
+		t.Logf("  ------------- UH OH! ------------")
+		t.Logf("")
+		t.Logf(`         _.-^^---....,,--          `)
+		t.Logf(`      _--                  --_     `)
+		t.Logf(`     <                        >)   `)
+		t.Logf(`     |                         |   `)
+		t.Logf(`      \._                   _./    `)
+		t.Logf("         ```--. . , ; .--'''       ")
+		t.Logf(`               | |   |             `)
+		t.Logf(`            .-=||  | |=-.          `)
+		t.Logf("            `-=#$&&@$#=-'          ")
+		t.Logf(`               | ;  :|             `)
+		t.Logf(`      _____.,-#$&$@$#&#~,._____    `)
+		t.Logf("")
+	}
+
+	for implIdx, implFailures := range failures {
+		fuzzImpl := fuzzTypes[implIdx]
+		for opIdx, cnt := range implFailures {
 			if cnt > 0 {
 				totalFailures += cnt
 				t.Logf("impl %s, op %s: %d/%d failed", fuzzImpl.Name(), string(runFuzzOps[opIdx]), cnt, fuzzIterations)
@@ -667,8 +691,14 @@ func (f fuzzU128) String() error {
 func (f fuzzU128) SetBit() error {
 	b1, bt, bv := f.source.BigU128AndBitSizeAndBitValue()
 	u1 := accU128FromBigInt(b1)
-	rb := new(big.Int).SetBit(b1, int(bt), bv)
-	ru := u1.SetBit(int(bt), bv)
+
+	bvi := uint(0)
+	if bv {
+		bvi = 1
+	}
+
+	rb := new(big.Int).SetBit(b1, int(bt), bvi)
+	ru := u1.SetBit(int(bt), bvi)
 	return checkEqualU128(ru, rb)
 }
 
@@ -715,17 +745,14 @@ func (f fuzzI128) Name() string { return "i128" }
 func (f fuzzI128) Abs() error {
 	b1 := f.source.BigI128()
 	i1 := accI128FromBigInt(b1)
-	rb := new(big.Int).Abs(b1)
 
-	ib := rb
-	if rb.Cmp(maxBigI128) > 0 { // overflow is possible if you abs minBig128
-		ib = new(big.Int).Add(wrapBigU128, rb)
-	}
+	rb := new(big.Int).Abs(b1)
+	ib := simulateBigI128Overflow(rb)
 	if err := checkEqualI128(i1.Abs(), ib); err != nil {
-		return err
+		return fmt.Errorf("Abs() failed: %v", err)
 	}
 	if err := checkEqualU128(i1.AbsU128(), rb); err != nil {
-		return err
+		return fmt.Errorf("AbsU128() failed: %v", err)
 	}
 
 	return nil
@@ -736,9 +763,7 @@ func (f fuzzI128) Inc() error {
 	u1 := accI128FromBigInt(b1)
 	rb := new(big.Int).Add(b1, big1)
 	ru := u1.Inc()
-	if rb.Cmp(maxBigI128) > 0 {
-		rb = new(big.Int).Sub(rb, wrapBigU128) // simulate overflow
-	}
+	rb = simulateBigI128Overflow(rb)
 	return checkEqualI128(ru, rb)
 }
 
@@ -746,9 +771,7 @@ func (f fuzzI128) Dec() error {
 	b1 := f.source.BigI128()
 	u1 := accI128FromBigInt(b1)
 	rb := new(big.Int).Sub(b1, big1)
-	if rb.Cmp(minBigI128) < 0 {
-		rb = new(big.Int).Add(wrapBigU128, rb) // simulate underflow
-	}
+	rb = simulateBigI128Overflow(rb)
 	ru := u1.Dec()
 	return checkEqualI128(ru, rb)
 }
@@ -757,11 +780,7 @@ func (f fuzzI128) Add() error {
 	b1, b2 := f.source.BigI128x2()
 	u1, u2 := accI128FromBigInt(b1), accI128FromBigInt(b2)
 	rb := new(big.Int).Add(b1, b2)
-	if rb.Cmp(wrapOverBigI128) >= 0 {
-		rb = new(big.Int).Sub(rb, wrapBigU128) // simulate overflow
-	} else if rb.Cmp(wrapUnderBigI128) <= 0 {
-		rb = new(big.Int).Add(rb, wrapBigU128) // simulate underflow
-	}
+	rb = simulateBigI128Overflow(rb)
 	ru := u1.Add(u2)
 	return checkEqualI128(ru, rb)
 }
@@ -770,11 +789,7 @@ func (f fuzzI128) Sub() error {
 	b1, b2 := f.source.BigI128x2()
 	u1, u2 := accI128FromBigInt(b1), accI128FromBigInt(b2)
 	rb := new(big.Int).Sub(b1, b2)
-	if rb.Cmp(wrapOverBigI128) >= 0 {
-		rb = new(big.Int).Sub(rb, wrapBigU128) // simulate overflow
-	} else if rb.Cmp(wrapUnderBigI128) <= 0 {
-		rb = new(big.Int).Add(rb, wrapBigU128) // simulate underflow
-	}
+	rb = simulateBigI128Overflow(rb)
 	ru := u1.Sub(u2)
 	return checkEqualI128(ru, rb)
 }
@@ -808,6 +823,9 @@ func (f fuzzI128) Quo() error {
 	if b2.Cmp(big0) == 0 {
 		return nil // Just skip this iteration, we know what happens!
 	}
+	if u1 == MinI128 && u2 == minusOne {
+		return nil // Skip overflow corner case, it's handled in the unit tests and not meaningful here in the fuzzer.
+	}
 	rb := new(big.Int).Quo(b1, b2)
 	ru := u1.Quo(u2)
 	return checkEqualI128(ru, rb)
@@ -819,6 +837,9 @@ func (f fuzzI128) Rem() error {
 	if b2.Cmp(big0) == 0 {
 		return nil // Just skip this iteration, we know what happens!
 	}
+	if u1 == MinI128 && u2 == minusOne {
+		return nil // Skip overflow corner case, it's handled in the unit tests and not meaningful here in the fuzzer.
+	}
 	rb := new(big.Int).Rem(b1, b2)
 	ru := u1.Rem(u2)
 	return checkEqualI128(ru, rb)
@@ -829,6 +850,9 @@ func (f fuzzI128) QuoRem() error {
 	u1, u2 := accI128FromBigInt(b1), accI128FromBigInt(b2)
 	if b2.Cmp(big0) == 0 {
 		return nil // Just skip this iteration, we know what happens!
+	}
+	if u1 == MinI128 && u2 == minusOne {
+		return nil // Skip overflow corner case, it's handled in the unit tests and not meaningful here in the fuzzer.
 	}
 
 	rbq := new(big.Int).Quo(b1, b2)
@@ -928,10 +952,10 @@ func (f fuzzI128) Not() error    { return nil }
 func (f fuzzI128) Neg() error {
 	b1 := f.source.BigI128()
 	u1 := accI128FromBigInt(b1)
-	rb := new(big.Int).Neg(b1)
-	if rb.Cmp(maxBigI128) > 0 { // overflow is possible if you negate minBig128
-		rb = new(big.Int).Add(wrapBigU128, rb)
-	}
+
+	// overflow is possible if you negate minBig128
+	rb := simulateBigI128Overflow(new(big.Int).Neg(b1))
+
 	ru := u1.Neg()
 	return checkEqualI128(ru, rb)
 }
@@ -947,14 +971,16 @@ func (f fuzzI128) String() error {
 type big128GenKind int
 
 const (
-	big128Zero big128GenKind = 0
-	big128Bits big128GenKind = 1
-	big128Same big128GenKind = 2
+	big128Zero  big128GenKind = 0
+	big128Bits  big128GenKind = 1
+	big128Same  big128GenKind = 2
+	big128Fixed big128GenKind = 3
 )
 
 type bigU128Gen struct {
-	kind big128GenKind
-	bits int
+	kind  big128GenKind
+	bits  int
+	fixed *big.Int
 }
 
 func (gen bigU128Gen) Value(r *rando) (v *big.Int) {
@@ -979,6 +1005,10 @@ func (gen bigU128Gen) Value(r *rando) (v *big.Int) {
 		oper := r.Operands()
 		v = oper[len(oper)-1]
 
+	case big128Fixed:
+		v = new(big.Int)
+		v.Set(gen.fixed)
+
 	default:
 		panic("unknown gen kind")
 	}
@@ -989,9 +1019,10 @@ func (gen bigU128Gen) Value(r *rando) (v *big.Int) {
 }
 
 type bigI128Gen struct {
-	kind big128GenKind
-	bits int
-	neg  bool
+	kind  big128GenKind
+	bits  int
+	neg   bool
+	fixed *big.Int
 }
 
 func (gen bigI128Gen) Value(r *rando) (v *big.Int) {
@@ -1019,6 +1050,10 @@ func (gen bigI128Gen) Value(r *rando) (v *big.Int) {
 		oper := r.Operands()
 		v = oper[len(oper)-1]
 
+	case big128Fixed:
+		v = new(big.Int)
+		v.Set(gen.fixed)
+
 	default:
 		panic("unknown gen kind")
 	}
@@ -1026,6 +1061,25 @@ func (gen bigI128Gen) Value(r *rando) (v *big.Int) {
 	r.operands = append(r.operands, v)
 
 	return v
+}
+
+type bigU128AndBitSizeGen struct {
+	u128  bigU128Gen
+	shift uint // 0 to 128
+}
+
+func (gen bigU128AndBitSizeGen) Values(r *rando) (v *big.Int, shift uint) {
+	return gen.u128.Value(r), gen.shift
+}
+
+type bigU128AndBitSizeAndBitValueGen struct {
+	u128  bigU128Gen
+	shift uint // 0 to 127
+	value bool // 0 or 1
+}
+
+func (gen bigU128AndBitSizeAndBitValueGen) Values(r *rando) (v *big.Int, shift uint, value bool) {
+	return gen.u128.Value(r), gen.shift, gen.value
 }
 
 // rando provides schemes for argument generation with heuristics that try to
@@ -1048,13 +1102,21 @@ type rando struct {
 	bigI128x2Schemes [][2]bigI128Gen
 	bigI128x2Cur     int
 
+	bigU128AndBitSizeSchemes []bigU128AndBitSizeGen
+	bigU128AndBitSizeCur     int
+
+	bigU128AndBitSizeAndBitValueSchemes []bigU128AndBitSizeAndBitValueGen
+	bigU128AndBitSizeAndBitValueCur     int
+
 	// This test has run; subsequent rando requests should fail until NewTest
 	// is called again:
 	testHasRun bool
 }
 
 func newRando(rng *rand.Rand) *rando {
-	// Number of times to repeat the "both arguments identical" test.
+	// Number of times to repeat the "both arguments identical" test for schemes
+	// that have two of the same kind of argument.
+	//
 	// We need this because the chance of even two random 128-bit operands being
 	// the same is unfathomable.
 	samesies := 5
@@ -1064,9 +1126,33 @@ func newRando(rng *rand.Rand) *rando {
 	}
 
 	{ // build bigU128Schemes
-		r.bigU128Schemes = append(r.bigU128Schemes, bigU128Gen{kind: big128Zero})
+		r.bigU128Schemes = append(r.bigU128Schemes,
+			bigU128Gen{kind: big128Zero},
+			bigU128Gen{kind: big128Fixed, fixed: maxBigUint64},
+			bigU128Gen{kind: big128Fixed, fixed: maxBigU128},
+		)
 		for i := 1; i <= 128; i++ {
 			r.bigU128Schemes = append(r.bigU128Schemes, bigU128Gen{kind: big128Bits, bits: i})
+		}
+	}
+
+	{ // build bigU128AndBitSizeSchemes
+		for _, u := range r.bigU128Schemes {
+			for shift := uint(0); shift < 128; shift++ {
+				r.bigU128AndBitSizeSchemes = append(
+					r.bigU128AndBitSizeSchemes, bigU128AndBitSizeGen{u128: u, shift: shift})
+			}
+		}
+	}
+
+	{ // build bigU128AndBitSizeAndBitValueSchemes
+		for _, u := range r.bigU128Schemes {
+			for shift := uint(0); shift < 128; shift++ {
+				for value := 0; value < 2; value++ {
+					r.bigU128AndBitSizeAndBitValueSchemes = append(
+						r.bigU128AndBitSizeAndBitValueSchemes, bigU128AndBitSizeAndBitValueGen{u128: u, shift: shift, value: value == 1})
+				}
+			}
 		}
 	}
 
@@ -1082,7 +1168,12 @@ func newRando(rng *rand.Rand) *rando {
 	}
 
 	{ // build bigI128Schemes
-		r.bigI128Schemes = append(r.bigI128Schemes, bigI128Gen{kind: big128Zero})
+		r.bigI128Schemes = append(r.bigI128Schemes,
+			bigI128Gen{kind: big128Zero},
+			bigI128Gen{kind: big128Fixed, fixed: maxBigInt64},
+			bigI128Gen{kind: big128Fixed, fixed: maxBigI128},
+			bigI128Gen{kind: big128Fixed, fixed: minBigI128},
+		)
 		for i := 1; i <= 127; i++ {
 			for n := 0; n < 2; n++ {
 				r.bigI128Schemes = append(r.bigI128Schemes, bigI128Gen{kind: big128Bits, bits: i, neg: n == 0})
@@ -1109,6 +1200,10 @@ func (r *rando) Operands() []*big.Int { return r.operands }
 func (r *rando) NextOp(op fuzzOp, configuredIterations int) (opIterations int) {
 	r.bigU128x2Cur = 0
 	r.bigU128Cur = 0
+	r.bigI128x2Cur = 0
+	r.bigI128Cur = 0
+	r.bigU128AndBitSizeCur = 0
+	r.bigU128AndBitSizeAndBitValueCur = 0
 	return configuredIterations
 }
 
@@ -1151,12 +1246,24 @@ func (r *rando) BigI128x2() (b1, b2 *big.Int) {
 
 func (r *rando) BigU128AndBitSize() (*big.Int, uint) {
 	r.ensureOnePerTest()
-	return r.bigU128(), r.uintn(128)
+
+	scheme := r.bigU128AndBitSizeSchemes[r.bigU128AndBitSizeCur]
+	r.bigU128AndBitSizeCur++
+	if r.bigU128AndBitSizeCur >= len(r.bigU128AndBitSizeSchemes) {
+		r.bigU128AndBitSizeCur = 0
+	}
+	return scheme.Values(r)
 }
 
-func (r *rando) BigU128AndBitSizeAndBitValue() (*big.Int, uint, uint) {
+func (r *rando) BigU128AndBitSizeAndBitValue() (*big.Int, uint, bool) {
 	r.ensureOnePerTest()
-	return r.bigU128(), r.uintn(128), r.uintn(2)
+
+	scheme := r.bigU128AndBitSizeAndBitValueSchemes[r.bigU128AndBitSizeAndBitValueCur]
+	r.bigU128AndBitSizeAndBitValueCur++
+	if r.bigU128AndBitSizeAndBitValueCur >= len(r.bigU128AndBitSizeAndBitValueSchemes) {
+		r.bigU128AndBitSizeAndBitValueCur = 0
+	}
+	return scheme.Values(r)
 }
 
 func (r *rando) BigI128() *big.Int {
@@ -1177,56 +1284,6 @@ func (r *rando) BigU128() *big.Int {
 		r.bigU128Cur = 0
 	}
 	return scheme.Value(r)
-}
-
-func (r *rando) intn(n int) int {
-	v := int(r.rng.Intn(n))
-	r.operands = append(r.operands, new(big.Int).SetInt64(int64(v)))
-	return v
-}
-
-func (r *rando) uintn(n int) uint {
-	v := uint(r.rng.Intn(n))
-	r.operands = append(r.operands, new(big.Int).SetUint64(uint64(v)))
-	return v
-}
-
-func (r *rando) bigU128() *big.Int {
-	var v = new(big.Int)
-	bits := r.rng.Intn(129) - 1 // 128 bits, +1 for "0 bits"
-	if bits < 0 {
-		return v // "-1 bits" == "0"
-	} else if bits <= 64 {
-		v = v.Rand(r.rng, maxBigUint64)
-	} else {
-		v = v.Rand(r.rng, maxBigU128)
-	}
-	v.And(v, masks[bits])
-	v.SetBit(v, bits, 1)
-	r.operands = append(r.operands, v)
-	return v
-}
-
-func (r *rando) bigI128() *big.Int {
-	neg := r.rng.Intn(2) == 1
-
-	var v = new(big.Int)
-	bits := r.rng.Intn(128) - 1 // 127 bits, 1 sign bit (skipped), +1 for "0 bits"
-	if bits < 0 {
-		return v
-	} else if bits <= 64 {
-		v = v.Rand(r.rng, maxBigUint64)
-	} else {
-		v = v.Rand(r.rng, maxBigU128)
-	}
-	v.And(v, masks[bits])
-	v.SetBit(v, bits, 1)
-	if neg {
-		v.Neg(v)
-	}
-
-	r.operands = append(r.operands, v)
-	return v
 }
 
 // masks contains a pre-calculated set of 128-bit masks for use when generating

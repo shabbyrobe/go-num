@@ -61,6 +61,7 @@ func TestI128Abs(t *testing.T) {
 		{i64(-1), i64(1)},
 		{I128{hi: maxUint64}, I128{hi: 1}},
 
+		{MaxI128, MaxI128}, // Should work
 		{MinI128, MinI128}, // Overflow
 	} {
 		t.Run(fmt.Sprintf("%d/|%s|=%s", idx, tc.a, tc.b), func(t *testing.T) {
@@ -458,6 +459,8 @@ func TestI128Neg(t *testing.T) {
 
 		// Negating MinI128 should yield MinI128:
 		{I128{hi: 0x8000000000000000, lo: 0}, I128{hi: 0x8000000000000000, lo: 0}},
+
+		{i128s("-170141183460469231731687303715884105728"), i128s("-170141183460469231731687303715884105728")},
 	} {
 		t.Run(fmt.Sprintf("%d/-%s=%s", idx, tc.a, tc.b), func(t *testing.T) {
 			tt := assert.WrapTB(t)
@@ -481,6 +484,8 @@ func TestI128QuoRem(t *testing.T) {
 
 		// Hit the 128-bit division 'cmp == 0' branch
 		{i: i128s("0x12345678901234567"), by: i128s("0x12345678901234567"), q: i64(1), r: i64(0)},
+
+		{i: MinI128, by: i64(-1), q: MinI128, r: zeroI128},
 	} {
 		t.Run(fmt.Sprintf("%s÷%s=%s,%s", tc.i, tc.by, tc.q, tc.r), func(t *testing.T) {
 			tt := assert.WrapTB(t)
@@ -488,15 +493,22 @@ func TestI128QuoRem(t *testing.T) {
 			tt.MustEqual(tc.q.String(), q.String())
 			tt.MustEqual(tc.r.String(), r.String())
 
-			iBig := tc.i.AsBigInt()
-			byBig := tc.by.AsBigInt()
+			// Skip the weird overflow edge case where we divide MinI128 by -1:
+			// this effectively becomes a negation operation, which overflows:
+			//
+			//   -170141183460469231731687303715884105728 / -1 == -170141183460469231731687303715884105728
+			//
+			if tc.i != MinI128 {
+				iBig := tc.i.AsBigInt()
+				byBig := tc.by.AsBigInt()
 
-			qBig, rBig := new(big.Int).Set(iBig), new(big.Int).Set(iBig)
-			qBig = qBig.Div(qBig, byBig)
-			rBig = rBig.Mod(rBig, byBig)
+				qBig, rBig := new(big.Int).Set(iBig), new(big.Int).Set(iBig)
+				qBig = qBig.Div(qBig, byBig)
+				rBig = rBig.Mod(rBig, byBig)
 
-			tt.MustEqual(tc.q.String(), qBig.String())
-			tt.MustEqual(tc.r.String(), rBig.String())
+				tt.MustEqual(tc.q.String(), qBig.String())
+				tt.MustEqual(tc.r.String(), rBig.String())
+			}
 		})
 	}
 }

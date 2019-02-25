@@ -531,6 +531,13 @@ func (i I128) Mul(n I128) (dest I128) {
 //
 // U128 does not support big.Int.DivMod()-style Euclidean division.
 //
+// Note: dividing MinI128 by -1 will overflow, returning MinI128, as
+// per the Go spec (https://golang.org/ref/spec#Integer_operators):
+//
+//	The one exception to this rule is that if the dividend x is the most
+//	negative value for the int type of x, the quotient q = x / -1 is equal to x
+//	(and r = 0) due to two's-complement integer overflow.
+//
 func (i I128) QuoRem(by I128) (q, r I128) {
 	qSign, rSign := 1, 1
 	if i.LessThan(zeroI128) {

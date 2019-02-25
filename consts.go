@@ -30,6 +30,8 @@ var (
 	zeroI128 I128
 	zeroU128 U128
 
+	minusOne = I128{hi: 0xFFFFFFFFFFFFFFFF, lo: 0xFFFFFFFFFFFFFFFF}
+
 	big0 = new(big.Int).SetInt64(0)
 	big1 = new(big.Int).SetInt64(1)
 
@@ -47,7 +49,7 @@ var (
 	wrapBigU64, _ = new(big.Int).SetString("18446744073709551616", 10)
 
 	// wrapOverBigI128 is 1 << 127, used to simulate over/underflow:
-	wrapOverBigI128, _ = new(big.Int).SetString("0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF", 0)
+	wrapOverBigI128, _ = new(big.Int).SetString("0x80000000000000000000000000000000", 0)
 
 	// wrapUnderBigI128 is -(1 << 127) - 1, used to simulate over/underflow:
 	wrapUnderBigI128, _ = new(big.Int).SetString("-170141183460469231731687303715884105729", 0)
