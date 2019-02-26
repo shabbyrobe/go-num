@@ -147,6 +147,11 @@ func U128FromFloat64(f float64) (out U128, inRange bool) {
 		return U128{}, false
 
 	} else if f <= maxUint64Float {
+		// FIXME: "In floating point, 2^64-1 is not exactly representable. When
+		// you compute it, you get 2^64 as a result. That conversion is out of
+		// range for float64->uint64. The results are implementation-defined in
+		// this case."
+		// https://github.com/golang/go/issues/29463
 		return U128{lo: uint64(f)}, true
 
 	} else if f <= maxU128Float {

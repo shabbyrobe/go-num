@@ -300,6 +300,8 @@ func TestU128FromFloat64(t *testing.T) {
 		{math.NaN(), u128s("0"), false},
 		{math.Inf(0), MaxU128, false},
 		{math.Inf(-1), u128s("0"), false},
+		{1.0, u64(1), true},
+		{float64(uint64(maxUint64)), u64(maxUint64), true},
 	} {
 		t.Run(fmt.Sprintf("%d/fromfloat64(%f)==%s", idx, tc.f, tc.out), func(t *testing.T) {
 			tt := assert.WrapTB(t)
@@ -315,7 +317,7 @@ func TestU128FromFloat64(t *testing.T) {
 				pct.Quo(diffBig, ibig)
 			}
 			pct.Abs(pct)
-			tt.MustAssert(pct.Cmp(floatDiffLimit) < 0, "%s: %.20f > %.20f", tc.out, pct, floatDiffLimit)
+			tt.MustAssert(pct.Cmp(floatDiffLimit) < 0, "%.20f -> %s: %.20f > %.20f", tc.f, tc.out, pct, floatDiffLimit)
 		})
 	}
 }

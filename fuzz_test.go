@@ -660,8 +660,8 @@ func (f fuzzU128) FromFloat64() error {
 	b1 := f.source.BigU128()
 	u1 := accU128FromBigInt(b1)
 	bf1 := new(big.Float).SetInt(b1)
-	f1, _ := bf1.Float64()
-	r1, inRange := U128FromFloat64(f1)
+	f64, _ := bf1.Float64()
+	r1, inRange := U128FromFloat64(f64)
 	if !inRange {
 		panic("float out of range") // FIXME: error
 	}
@@ -672,8 +672,8 @@ func (f fuzzU128) FromFloat64() error {
 	if isZero {
 		return checkEqualU128(r1, b1)
 	} else {
-		difff := new(big.Float).Quo(diff.AsBigFloat(), bf1)
-		if difff.Cmp(floatDiffLimit) > 0 {
+		diffFloat := new(big.Float).Quo(diff.AsBigFloat(), bf1)
+		if diffFloat.Cmp(floatDiffLimit) > 0 {
 			return fmt.Errorf("|128(%s) - big(%s)| = %s, > %s", r1, b1,
 				cleanFloatStr(fmt.Sprintf("%s", diff)),
 				cleanFloatStr(fmt.Sprintf("%.20f", floatDiffLimit)))
@@ -927,8 +927,8 @@ func (f fuzzI128) FromFloat64() error {
 	if isZero {
 		return checkEqualI128(r1, b1)
 	} else {
-		difff := new(big.Float).Quo(diff.AsBigFloat(), bf1)
-		if difff.Cmp(floatDiffLimit) > 0 {
+		diffFLoat := new(big.Float).Quo(diff.AsBigFloat(), bf1)
+		if diffFLoat.Cmp(floatDiffLimit) > 0 {
 			return fmt.Errorf("|128(%s) - big(%s)| = %s, > %s", r1, b1,
 				cleanFloatStr(fmt.Sprintf("%s", diff)),
 				cleanFloatStr(fmt.Sprintf("%.20f", floatDiffLimit)))
