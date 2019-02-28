@@ -301,13 +301,27 @@ func TestU128FromFloat64(t *testing.T) {
 		{math.Inf(0), MaxU128, false},
 		{math.Inf(-1), u128s("0"), false},
 		{1.0, u64(1), true},
-		{float64(uint64(maxUint64)), u64(maxUint64), true},
+
+		// {{{ Explore weird corner cases around uint64(float64(math.MaxUint64)) nonsense.
+		// 1 greater than maxUint64 because maxUint64 is not representable in a float64 exactly:
+		{maxUint64Float, u128s("18446744073709551616"), true},
+
+		// Largest whole number representable in a float64 without exceeding the size of a uint64:
+		{maxRepresentableUint64Float, u128s("18446744073709549568"), true},
+
+		// Largest whole number representable in a float64 without exceeding the size of a U128:
+		{maxRepresentableU128Float, u128s("340282366920938425684442744474606501888"), true},
+
+		// Not inRange because maxU128Float is not representable in a float64 exactly:
+		{maxU128Float, MaxU128, false},
+		// }}}
 	} {
 		t.Run(fmt.Sprintf("%d/fromfloat64(%f)==%s", idx, tc.f, tc.out), func(t *testing.T) {
 			tt := assert.WrapTB(t)
 
 			rn, inRange := U128FromFloat64(tc.f)
 			tt.MustEqual(tc.inRange, inRange)
+			tt.MustEqual(tc.out, rn)
 
 			diff := DifferenceU128(tc.out, rn)
 
