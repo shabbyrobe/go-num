@@ -1,6 +1,7 @@
 package num
 
 import (
+	"math"
 	"math/big"
 )
 
@@ -12,7 +13,11 @@ const (
 	minInt64Float = float64(minInt64) // -(1<<63)
 	maxInt64Float = float64(maxInt64) // (1<<63) - 1
 
-	maxUint64Float  = float64(maxUint64)     // (1<<64) - 1
+	// WARNING: this can not be represented accurately as a float; attempting to
+	// convert it to uint64 will overflow and cause weird truncation issues that
+	// violate the principle of least astonishment.
+	maxUint64Float = float64(maxUint64) // (1<<64) - 1
+
 	wrapUint64Float = float64(maxUint64) + 1 // 1 << 64
 
 	maxU128Float = float64(340282366920938463463374607431768211455)  // (1<<128) - 1
@@ -66,4 +71,9 @@ var (
 	//	return math.Nextafter(1.0, 2.0) - 1.0
 	//
 	floatDiffLimit, _ = new(big.Float).SetString("2.220446049250313080847263336181640625e-16")
+
+	maxRepresentableUint64Float  = math.Nextafter(maxUint64Float, 0)           // < (1<<64)
+	wrapRepresentableUint64Float = math.Nextafter(maxUint64Float, math.Inf(1)) // >= (1<<64)
+
+	maxRepresentableU128Float = math.Nextafter(float64(340282366920938463463374607431768211455), 0) // < (1<<128)
 )

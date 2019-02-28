@@ -2,6 +2,7 @@ package num
 
 import (
 	"fmt"
+	"math"
 	"math/big"
 	"math/rand"
 	"strings"
@@ -59,6 +60,10 @@ const (
 const (
 	fuzzTypeU128 fuzzType = "u128"
 	fuzzTypeI128 fuzzType = "i128"
+)
+
+var (
+	u128FloatLimit = math.Nextafter(maxRepresentableU128Float, math.Inf(1))
 )
 
 var allFuzzTypes = []fuzzType{fuzzTypeU128, fuzzTypeI128}
@@ -661,9 +666,18 @@ func (f fuzzU128) FromFloat64() error {
 	u1 := accU128FromBigInt(b1)
 	bf1 := new(big.Float).SetInt(b1)
 	f64, _ := bf1.Float64()
+
+	if f64 == u128FloatLimit {
+		// This is a bit of a cheat to allow rando to use MaxU128, which is
+		// technically unrepresentable as a float64 due to precision errors.
+		// The float64 after converting MaxU128 will be the next representable
+		// float _after_ the maximum one representable within a 128-bit integer.
+		f64 = maxRepresentableU128Float
+	}
+
 	r1, inRange := U128FromFloat64(f64)
 	if !inRange {
-		panic("float out of range") // FIXME: error
+		panic(fmt.Errorf("float out of u128 range; expected <= %s, found %f", u1, f64)) // FIXME: error
 	}
 
 	diff := DifferenceU128(u1, r1)

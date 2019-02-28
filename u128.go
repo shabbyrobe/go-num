@@ -140,21 +140,18 @@ func MustU128FromFloat32(f float32) U128 {
 // NaN is treated as 0, inRange is set to false. This may change to a panic
 // at some point.
 func U128FromFloat64(f float64) (out U128, inRange bool) {
+	// WARNING: casts from float64 to uint64 have some astonishing properties:
+	// https://github.com/golang/go/issues/29463
 	if f == 0 {
 		return U128{}, true
 
 	} else if f < 0 {
 		return U128{}, false
 
-	} else if f <= maxUint64Float {
-		// FIXME: "In floating point, 2^64-1 is not exactly representable. When
-		// you compute it, you get 2^64 as a result. That conversion is out of
-		// range for float64->uint64. The results are implementation-defined in
-		// this case."
-		// https://github.com/golang/go/issues/29463
+	} else if f <= maxRepresentableUint64Float {
 		return U128{lo: uint64(f)}, true
 
-	} else if f <= maxU128Float {
+	} else if f <= maxRepresentableU128Float {
 		lo := modpos(f, wrapUint64Float) // f is guaranteed to be > 0 here.
 		return U128{hi: uint64(f / wrapUint64Float), lo: uint64(lo)}, true
 
