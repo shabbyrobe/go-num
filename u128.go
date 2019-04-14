@@ -327,6 +327,7 @@ func (u U128) Add(n U128) (v U128) {
 }
 
 func (u U128) Add64(n uint64) (v U128) {
+	v.hi = u.hi
 	v.lo = u.lo + n
 	if u.lo > v.lo {
 		v.hi++
@@ -344,6 +345,7 @@ func (u U128) Sub(n U128) (v U128) {
 }
 
 func (u U128) Sub64(n uint64) (v U128) {
+	v.hi = u.hi
 	v.lo = u.lo - n
 	if u.lo < v.lo {
 		v.hi--
@@ -642,8 +644,48 @@ func (u U128) Quo(by U128) (q U128) {
 }
 
 func (u U128) Quo64(by uint64) (q U128) {
-	q.lo = quo128by64(u.hi, u.lo, by)
-	return q
+	if by == 0 {
+		panic("u128: division by zero")
+	}
+
+	if u.hi == 0 {
+		q.lo = u.lo / by
+		return q
+	}
+
+	byLoLeading0 := uint(bits.LeadingZeros64(by))
+	byLeading0 := byLoLeading0 + 64
+
+	if byLeading0 == 127 {
+		return u
+	}
+
+	byTrailing0 := uint(bits.TrailingZeros64(by))
+	if byLeading0+byTrailing0 == 127 {
+		return u.Rsh(byTrailing0)
+	}
+
+	if cmp := u.Cmp64(by); cmp < 0 {
+		return q // it's 100% remainder
+	} else if cmp == 0 {
+		q.lo = 1 // dividend and divisor are the same
+		return q
+	}
+
+	uLeading0 := u.LeadingZeros()
+	if byLeading0-uLeading0 > divAlgoLeading0Spill {
+		if u.hi < by {
+			q.lo = quo128by64(u.hi, u.lo, by, byLoLeading0)
+
+		} else {
+			q.hi = u.hi / by
+			q.lo = quo128by64(u.hi%by, u.lo, by, byLoLeading0)
+		}
+		return q
+
+	} else {
+		return quo128bin(u, U128{lo: by}, uLeading0, byLeading0)
+	}
 }
 
 // QuoRem returns the quotient q and remainder r for y != 0. If y == 0, a
@@ -706,22 +748,22 @@ func (u U128) QuoRem(by U128) (q, r U128) {
 }
 
 func (u U128) QuoRem64(by uint64) (q, r U128) {
-	leading0 := uint(bits.LeadingZeros64(by))
-	q.lo, r.lo = quorem128by64(u.hi, u.lo, by, leading0)
-	return q, r
+	// FIXME: inline only the needed bits
+	return u.QuoRem(U128{lo: by})
 }
 
 // Rem returns the remainder of x%y for y != 0. If y == 0, a division-by-zero
 // run-time panic occurs. Rem implements truncated modulus (like Go); see
 // QuoRem for more details.
 func (u U128) Rem(by U128) (r U128) {
+	// FIXME: inline only the needed bits
 	_, r = u.QuoRem(by)
 	return r
 }
 
 func (u U128) Rem64(by uint64) (r U128) {
-	leading0 := uint(bits.LeadingZeros64(by))
-	_, r.lo = quorem128by64(u.hi, u.lo, by, leading0)
+	// FIXME: inline only the needed bits
+	_, r = u.QuoRem(U128{lo: by})
 	return r
 }
 
@@ -742,19 +784,18 @@ func (u U128) TrailingZeros() uint {
 }
 
 // Hacker's delight 9-4, divlu:
-func quo128by64(u1, u0, v uint64) (q uint64) {
+func quo128by64(u1, u0, v uint64, vLeading0 uint) (q uint64) {
 	var b uint64 = 1 << 32
 	var un1, un0, vn1, vn0, q1, q0, un32, un21, un10, rhat, vs, left, right uint64
 
-	s := uint(bits.LeadingZeros64(v))
-	vs = v << s
+	vs = v << vLeading0
 
 	vn1 = vs >> 32
 	vn0 = vs & 0xffffffff
 
-	if s > 0 {
-		un32 = (u1 << s) | (u0 >> (64 - s))
-		un10 = u0 << s
+	if vLeading0 > 0 {
+		un32 = (u1 << vLeading0) | (u0 >> (64 - vLeading0))
+		un10 = u0 << vLeading0
 	} else {
 		un32 = u1
 		un10 = u0
@@ -881,7 +922,7 @@ func quorem128by128(m, v U128, vHiLeading0, vLoLeading0 uint) (q, r U128) {
 		u1 := m.Rsh(1)
 
 		var q1 U128
-		q1.lo = quo128by64(u1.hi, u1.lo, v1.hi)
+		q1.lo = quo128by64(u1.hi, u1.lo, v1.hi, vLoLeading0)
 		q1 = q1.Rsh(63 - vHiLeading0)
 
 		if q1.hi|q1.lo != 0 {

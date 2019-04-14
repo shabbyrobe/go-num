@@ -43,9 +43,10 @@ var (
 	maxBigUint64  = new(big.Int).SetUint64(maxUint64)
 	maxBigU128, _ = new(big.Int).SetString("340282366920938463463374607431768211455", 10)
 	maxBigInt64   = new(big.Int).SetUint64(maxInt64)
+	minBigInt64   = new(big.Int).SetInt64(minInt64)
 
-	minBigI128, _ = new(big.Int).SetString("-170141183460469231731687303715884105728", 10)
-	maxBigI128, _ = new(big.Int).SetString("170141183460469231731687303715884105727", 10)
+	minBigI128, _ = new(big.Int).SetString("-0x80000000000000000000000000000000", 0)
+	maxBigI128, _ = new(big.Int).SetString("0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF", 0)
 
 	// wrapBigU128 is 1 << 128, used to simulate over/underflow:
 	wrapBigU128, _ = new(big.Int).SetString("340282366920938463463374607431768211456", 10)

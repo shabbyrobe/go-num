@@ -647,6 +647,15 @@ func (i I128) QuoRem(by I128) (q, r I128) {
 	return q, r
 }
 
+func (i I128) QuoRem64(by int64) (q, r I128) {
+	var hi uint64
+	if by < 0 {
+		hi = maxUint64
+	}
+	// FIXME: inline only the needed bits
+	return i.QuoRem(I128{hi: hi, lo: uint64(by)})
+}
+
 // Quo returns the quotient x/y for y != 0. If y == 0, a division-by-zero
 // run-time panic occurs. Quo implements truncated division (like Go); see
 // QuoRem for more details.
@@ -669,11 +678,41 @@ func (i I128) Quo(by I128) (q I128) {
 	return q
 }
 
+func (i I128) Quo64(by int64) (q I128) {
+	qSign := 1
+	if i.LessThan(zeroI128) {
+		qSign = -1
+		i = i.Neg()
+	}
+	if by < 0 {
+		qSign = -qSign
+		by = -by
+	}
+
+	qu := i.AsU128().Quo64(uint64(by))
+	q = qu.AsI128()
+	if qSign < 0 {
+		q = q.Neg()
+	}
+	return q
+}
+
 // Rem returns the remainder of x%y for y != 0. If y == 0, a division-by-zero
 // run-time panic occurs. Rem implements truncated modulus (like Go); see
 // QuoRem for more details.
 func (i I128) Rem(by I128) (r I128) {
+	// FIXME: inline only the needed bits
 	_, r = i.QuoRem(by)
+	return r
+}
+
+func (i I128) Rem64(by int64) (r I128) {
+	var hi uint64
+	if by < 0 {
+		hi = maxUint64
+	}
+	// FIXME: inline only the needed bits
+	_, r = i.QuoRem(I128{hi: hi, lo: uint64(by)})
 	return r
 }
 

@@ -817,31 +817,32 @@ func BenchmarkU128Mul(b *testing.B) {
 }
 
 var benchQuoCases = []struct {
+	name     string
 	dividend U128
 	divisor  U128
 }{
 	// 128-bit divide by 1 branch:
-	{MaxU128, u64(1)},
+	{"128bit/1", MaxU128, u64(1)},
 
 	// 128-bit divide by power of 2 branch:
-	{MaxU128, u64(2)},
+	{"128bit/pow2", MaxU128, u64(2)},
 
 	// 64-bit divide by 1 branch:
-	{u64(maxUint64), u64(1)},
+	{"64-bit/1", u64(maxUint64), u64(1)},
 
 	// 128-bit divisor lz+tz > threshold branch:
-	{u128s("0x123456789012345678901234567890"), u128s("0xFF0000000000000000000")},
+	{"128bit/lz+tz>thresh", u128s("0x123456789012345678901234567890"), u128s("0xFF0000000000000000000")},
 
 	// 128-bit divisor lz+tz <= threshold branch:
-	{u128s("0x12345678901234567890123456789012"), u128s("0x10000000000000000000000000000001")},
+	{"128bit/lz+tz<=thresh", u128s("0x12345678901234567890123456789012"), u128s("0x10000000000000000000000000000001")},
 
 	// 128-bit 'cmp == 0' shortcut branch:
-	{u128s("0x1234567890123456"), u128s("0x1234567890123456")},
+	{"128bit/samesies", u128s("0x1234567890123456"), u128s("0x1234567890123456")},
 }
 
 func BenchmarkU128Quo(b *testing.B) {
-	for _, bc := range benchQuoCases {
-		b.Run("", func(b *testing.B) {
+	for idx, bc := range benchQuoCases {
+		b.Run(fmt.Sprintf("%d/%s", idx, bc.name), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				BenchU128Result = bc.dividend.Quo(bc.divisor)
 			}
@@ -850,8 +851,8 @@ func BenchmarkU128Quo(b *testing.B) {
 }
 
 func BenchmarkU128QuoRem(b *testing.B) {
-	for _, bc := range benchQuoCases {
-		b.Run("", func(b *testing.B) {
+	for idx, bc := range benchQuoCases {
+		b.Run(fmt.Sprintf("%d/%s", idx, bc.name), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				BenchU128Result, _ = bc.dividend.QuoRem(bc.divisor)
 			}
@@ -867,23 +868,63 @@ func BenchmarkU128QuoRemTZ(b *testing.B) {
 	// This could probably be automated a little better, and the result is also
 	// likely platform and possibly CPU specific.
 	for zeros := 0; zeros < 31; zeros++ {
-		b.Run("", func(b *testing.B) {
-			bs := "0b"
-			for j := 0; j < 128; j++ {
-				if j >= zeros {
-					bs += "1"
-				} else {
-					bs += "0"
+		for useRem := 0; useRem < 2; useRem++ {
+			b.Run(fmt.Sprintf("z=%d/rem=%v", zeros, useRem == 1), func(b *testing.B) {
+				bs := "0b"
+				for j := 0; j < 128; j++ {
+					if j >= zeros {
+						bs += "1"
+					} else {
+						bs += "0"
+					}
 				}
-			}
 
-			da := u128s("0x98765432109876543210987654321098")
-			db := u128s(bs)
+				da := u128s("0x98765432109876543210987654321098")
+				db := u128s(bs)
 
-			for i := 0; i < b.N; i++ {
-				BenchU128Result, _ = da.QuoRem(db)
-			}
-		})
+				b.ResetTimer()
+				for i := 0; i < b.N; i++ {
+					if useRem == 1 {
+						BenchU128Result, _ = da.QuoRem(db)
+					} else {
+						BenchU128Result = da.Quo(db)
+					}
+				}
+			})
+		}
+	}
+}
+
+func BenchmarkU128QuoRem64TZ(b *testing.B) {
+	for zeros := 0; zeros < 31; zeros++ {
+		for useRem := 0; useRem < 2; useRem++ {
+			b.Run(fmt.Sprintf("z=%d/rem=%v", zeros, useRem == 1), func(b *testing.B) {
+				bs := "0b"
+				for j := 0; j < 64; j++ {
+					if j >= zeros {
+						bs += "1"
+					} else {
+						bs += "0"
+					}
+				}
+
+				da := u128s("0x98765432109876543210987654321098")
+				db128 := u128s(bs)
+				if !db128.IsUint64() {
+					panic("oh dear!")
+				}
+				db := db128.AsUint64()
+
+				b.ResetTimer()
+				for i := 0; i < b.N; i++ {
+					if useRem == 1 {
+						BenchU128Result, _ = da.QuoRem64(db)
+					} else {
+						BenchU128Result = da.Quo64(db)
+					}
+				}
+			})
+		}
 	}
 }
 

@@ -82,6 +82,20 @@ func accI128FromBigInt(b *big.Int) I128 {
 	return i
 }
 
+func accU64FromBigInt(b *big.Int) uint64 {
+	if !b.IsUint64() {
+		panic(fmt.Errorf("num: inaccurate conversion to U64 in fuzz tester for %s", b))
+	}
+	return b.Uint64()
+}
+
+func accI64FromBigInt(b *big.Int) int64 {
+	if !b.IsInt64() {
+		panic(fmt.Errorf("num: inaccurate conversion to I64 in fuzz tester for %s", b))
+	}
+	return b.Int64()
+}
+
 type StringList []string
 
 func (s StringList) Strings() []string { return s }
@@ -124,19 +138,27 @@ func randomBigU128(rng *rand.Rand) *big.Int {
 }
 
 func simulateBigU128Overflow(rb *big.Int) *big.Int {
-	if rb.Cmp(maxBigI128) > 0 {
-		rb = new(big.Int).Sub(rb, wrapBigU128) // simulate overflow
-	} else if rb.Cmp(big0) < 0 {
-		rb = new(big.Int).Add(rb, wrapBigU128) // simulate underflow
+	for rb.Cmp(wrapBigU128) >= 0 {
+		rb = new(big.Int).And(rb, maxBigU128)
 	}
 	return rb
 }
 
 func simulateBigI128Overflow(rb *big.Int) *big.Int {
-	if rb.Cmp(wrapOverBigI128) >= 0 {
-		rb = new(big.Int).Sub(rb, wrapBigU128) // simulate overflow
-	} else if rb.Cmp(wrapUnderBigI128) <= 0 {
-		rb = new(big.Int).Add(rb, wrapBigU128) // simulate underflow
+	if rb.Cmp(maxBigI128) > 0 {
+		// simulate overflow
+		gap := new(big.Int)
+		gap.Sub(rb, minBigI128)
+		r := new(big.Int).Rem(gap, wrapBigU128)
+		rb = new(big.Int).Add(r, minBigI128)
+
+	} else if rb.Cmp(minBigI128) < 0 {
+		// simulate underflow
+		gap := new(big.Int).Set(rb)
+		gap.Sub(maxBigI128, gap)
+		r := new(big.Int).Rem(gap, wrapBigU128)
+		rb = new(big.Int).Sub(maxBigI128, r)
 	}
+
 	return rb
 }

@@ -26,14 +26,17 @@ const fuzzDefaultIterations = 20000
 const (
 	fuzzAbs              fuzzOp = "abs"
 	fuzzAdd              fuzzOp = "add"
+	fuzzAdd64            fuzzOp = "add64"
 	fuzzAnd              fuzzOp = "and"
 	fuzzAndNot           fuzzOp = "andnot"
 	fuzzAsFloat64        fuzzOp = "asfloat64"
 	fuzzBit              fuzzOp = "bit"
 	fuzzBitLen           fuzzOp = "bitlen"
 	fuzzCmp              fuzzOp = "cmp"
+	fuzzCmp64            fuzzOp = "cmp64"
 	fuzzDec              fuzzOp = "dec"
 	fuzzEqual            fuzzOp = "equal"
+	fuzzEqual64          fuzzOp = "equal64"
 	fuzzFromFloat64      fuzzOp = "fromfloat64"
 	fuzzGreaterOrEqualTo fuzzOp = "gte"
 	fuzzGreaterThan      fuzzOp = "gt"
@@ -42,16 +45,21 @@ const (
 	fuzzLessThan         fuzzOp = "lt"
 	fuzzLsh              fuzzOp = "lsh"
 	fuzzMul              fuzzOp = "mul"
+	fuzzMul64            fuzzOp = "mul64"
 	fuzzNeg              fuzzOp = "neg"
 	fuzzNot              fuzzOp = "not"
 	fuzzOr               fuzzOp = "or"
 	fuzzQuo              fuzzOp = "quo"
+	fuzzQuo64            fuzzOp = "quo64"
 	fuzzQuoRem           fuzzOp = "quorem"
+	fuzzQuoRem64         fuzzOp = "quorem64"
 	fuzzRem              fuzzOp = "rem"
+	fuzzRem64            fuzzOp = "rem64"
 	fuzzRsh              fuzzOp = "rsh"
 	fuzzString           fuzzOp = "string"
 	fuzzSetBit           fuzzOp = "setbit"
 	fuzzSub              fuzzOp = "sub"
+	fuzzSub64            fuzzOp = "sub64"
 	fuzzXor              fuzzOp = "xor"
 )
 
@@ -77,14 +85,17 @@ var allFuzzTypes = []fuzzType{fuzzTypeU128, fuzzTypeI128}
 var allFuzzOps = []fuzzOp{
 	fuzzAbs,
 	fuzzAdd,
+	fuzzAdd64,
 	fuzzAnd,
 	fuzzAndNot,
 	fuzzAsFloat64,
 	fuzzBit,
 	fuzzBitLen,
 	fuzzCmp,
+	fuzzCmp64,
 	fuzzDec,
 	fuzzEqual,
+	fuzzEqual64,
 	fuzzFromFloat64,
 	fuzzGreaterOrEqualTo,
 	fuzzGreaterThan,
@@ -93,16 +104,21 @@ var allFuzzOps = []fuzzOp{
 	fuzzLessThan,
 	fuzzLsh,
 	fuzzMul,
+	fuzzMul64,
 	fuzzNeg,
 	fuzzNot,
 	fuzzOr,
 	fuzzQuo,
+	fuzzQuo64,
 	fuzzQuoRem,
+	fuzzQuoRem64,
 	fuzzRem,
+	fuzzRem64,
 	fuzzRsh,
 	fuzzSetBit,
 	fuzzString,
 	fuzzSub,
+	fuzzSub64,
 	fuzzXor,
 }
 
@@ -112,14 +128,17 @@ type fuzzOps interface {
 
 	Abs() error
 	Add() error
+	Add64() error
 	And() error
 	AndNot() error
 	AsFloat64() error
 	Bit() error
 	BitLen() error
 	Cmp() error
+	Cmp64() error
 	Dec() error
 	Equal() error
+	Equal64() error
 	FromFloat64() error
 	GreaterOrEqualTo() error
 	GreaterThan() error
@@ -128,16 +147,21 @@ type fuzzOps interface {
 	LessThan() error
 	Lsh() error
 	Mul() error
+	Mul64() error
 	Neg() error
 	Not() error
 	Or() error
 	Quo() error
+	Quo64() error
 	QuoRem() error
+	QuoRem64() error
 	Rem() error
+	Rem64() error
 	Rsh() error
 	SetBit() error
 	String() error
 	Sub() error
+	Sub64() error
 	Xor() error
 }
 
@@ -237,6 +261,8 @@ func TestFuzz(t *testing.T) {
 					err = fuzzImpl.Abs()
 				case fuzzAdd:
 					err = fuzzImpl.Add()
+				case fuzzAdd64:
+					err = fuzzImpl.Add64()
 				case fuzzAnd:
 					err = fuzzImpl.And()
 				case fuzzAndNot:
@@ -249,10 +275,14 @@ func TestFuzz(t *testing.T) {
 					err = fuzzImpl.BitLen()
 				case fuzzCmp:
 					err = fuzzImpl.Cmp()
+				case fuzzCmp64:
+					err = fuzzImpl.Cmp64()
 				case fuzzDec:
 					err = fuzzImpl.Dec()
 				case fuzzEqual:
 					err = fuzzImpl.Equal()
+				case fuzzEqual64:
+					err = fuzzImpl.Equal64()
 				case fuzzFromFloat64:
 					err = fuzzImpl.FromFloat64()
 				case fuzzGreaterOrEqualTo:
@@ -269,6 +299,8 @@ func TestFuzz(t *testing.T) {
 					err = fuzzImpl.Lsh()
 				case fuzzMul:
 					err = fuzzImpl.Mul()
+				case fuzzMul64:
+					err = fuzzImpl.Mul64()
 				case fuzzNeg:
 					err = fuzzImpl.Neg()
 				case fuzzNot:
@@ -277,10 +309,16 @@ func TestFuzz(t *testing.T) {
 					err = fuzzImpl.Or()
 				case fuzzQuo:
 					err = fuzzImpl.Quo()
+				case fuzzQuo64:
+					err = fuzzImpl.Quo64()
 				case fuzzQuoRem:
 					err = fuzzImpl.QuoRem()
+				case fuzzQuoRem64:
+					err = fuzzImpl.QuoRem64()
 				case fuzzRem:
 					err = fuzzImpl.Rem()
+				case fuzzRem64:
+					err = fuzzImpl.Rem64()
 				case fuzzRsh:
 					err = fuzzImpl.Rsh()
 				case fuzzSetBit:
@@ -289,6 +327,8 @@ func TestFuzz(t *testing.T) {
 					err = fuzzImpl.String()
 				case fuzzSub:
 					err = fuzzImpl.Sub()
+				case fuzzSub64:
+					err = fuzzImpl.Sub64()
 				case fuzzXor:
 					err = fuzzImpl.Xor()
 				default:
@@ -364,17 +404,17 @@ func (op fuzzOp) Print(operands ...*big.Int) string {
 	case fuzzAbs:
 		return fmt.Sprintf("|%d|", operands[0])
 
-	case fuzzAdd,
+	case fuzzAdd, fuzzAdd64,
 		fuzzAnd,
 		fuzzAndNot,
 		fuzzLessOrEqualTo,
 		fuzzLessThan,
 		fuzzLsh,
-		fuzzMul,
+		fuzzMul, fuzzMul64,
 		fuzzOr,
-		fuzzQuo,
-		fuzzQuoRem,
-		fuzzRem,
+		fuzzQuo, fuzzQuo64,
+		fuzzQuoRem, fuzzQuoRem64,
+		fuzzRem, fuzzRem64,
 		fuzzRsh,
 		fuzzXor,
 		fuzzCmp,
@@ -397,7 +437,7 @@ func (op fuzzOp) String() string {
 	switch op {
 	case fuzzAbs:
 		return "|x|"
-	case fuzzAdd:
+	case fuzzAdd, fuzzAdd64:
 		return "+"
 	case fuzzAnd:
 		return "&"
@@ -409,11 +449,11 @@ func (op fuzzOp) String() string {
 		return "bit()"
 	case fuzzBitLen:
 		return "bitlen()"
-	case fuzzCmp:
+	case fuzzCmp, fuzzCmp64:
 		return "<=>"
 	case fuzzDec:
 		return "--"
-	case fuzzEqual:
+	case fuzzEqual, fuzzEqual64:
 		return "=="
 	case fuzzFromFloat64:
 		return "fromfloat64()"
@@ -429,7 +469,7 @@ func (op fuzzOp) String() string {
 		return "<="
 	case fuzzLsh:
 		return "<<"
-	case fuzzMul:
+	case fuzzMul, fuzzMul64:
 		return "*"
 	case fuzzNeg:
 		return "-"
@@ -437,11 +477,11 @@ func (op fuzzOp) String() string {
 		return "^"
 	case fuzzOr:
 		return "|"
-	case fuzzQuo:
+	case fuzzQuo, fuzzQuo64:
 		return "/"
-	case fuzzQuoRem:
+	case fuzzQuoRem, fuzzQuoRem64:
 		return "/%"
-	case fuzzRem:
+	case fuzzRem, fuzzRem64:
 		return "%"
 	case fuzzRsh:
 		return ">>"
@@ -449,7 +489,7 @@ func (op fuzzOp) String() string {
 		return "setbit()"
 	case fuzzString:
 		return "string()"
-	case fuzzSub:
+	case fuzzSub, fuzzSub64:
 		return "-"
 	case fuzzXor:
 		return "^"
@@ -494,10 +534,17 @@ func (f fuzzU128) Add() error {
 	b1, b2 := f.source.BigU128x2()
 	u1, u2 := accU128FromBigInt(b1), accU128FromBigInt(b2)
 	rb := new(big.Int).Add(b1, b2)
-	if rb.Cmp(wrapBigU128) >= 0 {
-		rb = new(big.Int).Sub(rb, wrapBigU128) // simulate overflow
-	}
+	rb = simulateBigU128Overflow(rb)
 	ru := u1.Add(u2)
+	return checkEqualU128(ru, rb)
+}
+
+func (f fuzzU128) Add64() error {
+	b1, b2 := f.source.BigU128And64()
+	u1, u2 := accU128FromBigInt(b1), accU64FromBigInt(b2)
+	rb := new(big.Int).Add(b1, b2)
+	rb = simulateBigU128Overflow(rb)
+	ru := u1.Add64(u2)
 	return checkEqualU128(ru, rb)
 }
 
@@ -512,14 +559,32 @@ func (f fuzzU128) Sub() error {
 	return checkEqualU128(ru, rb)
 }
 
+func (f fuzzU128) Sub64() error {
+	b1, b2 := f.source.BigU128And64()
+	u1, u2 := accU128FromBigInt(b1), accU64FromBigInt(b2)
+	rb := new(big.Int).Sub(b1, b2)
+	if rb.Cmp(big0) < 0 {
+		rb = new(big.Int).Add(wrapBigU128, rb) // simulate underflow
+	}
+	ru := u1.Sub64(u2)
+	return checkEqualU128(ru, rb)
+}
+
 func (f fuzzU128) Mul() error {
 	b1, b2 := f.source.BigU128x2()
 	u1, u2 := accU128FromBigInt(b1), accU128FromBigInt(b2)
 	rb := new(big.Int).Mul(b1, b2)
-	for rb.Cmp(wrapBigU128) >= 0 {
-		rb = rb.And(rb, maxBigU128) // simulate overflow
-	}
+	rb = simulateBigU128Overflow(rb)
 	ru := u1.Mul(u2)
+	return checkEqualU128(ru, rb)
+}
+
+func (f fuzzU128) Mul64() error {
+	b1, b2 := f.source.BigU128And64()
+	u1, u2 := accU128FromBigInt(b1), accU64FromBigInt(b2)
+	rb := new(big.Int).Mul(b1, b2)
+	rb = simulateBigU128Overflow(rb)
+	ru := u1.Mul64(u2)
 	return checkEqualU128(ru, rb)
 }
 
@@ -534,6 +599,17 @@ func (f fuzzU128) Quo() error {
 	return checkEqualU128(ru, rb)
 }
 
+func (f fuzzU128) Quo64() error {
+	b1, b2 := f.source.BigU128And64()
+	u1, u2 := accU128FromBigInt(b1), accU64FromBigInt(b2)
+	if b2.Cmp(big0) == 0 {
+		return nil // Just skip this iteration, we know what happens!
+	}
+	rb := new(big.Int).Quo(b1, b2)
+	ru := u1.Quo64(u2)
+	return checkEqualU128(ru, rb)
+}
+
 func (f fuzzU128) Rem() error {
 	b1, b2 := f.source.BigU128x2()
 	u1, u2 := accU128FromBigInt(b1), accU128FromBigInt(b2)
@@ -542,6 +618,17 @@ func (f fuzzU128) Rem() error {
 	}
 	rb := new(big.Int).Rem(b1, b2)
 	ru := u1.Rem(u2)
+	return checkEqualU128(ru, rb)
+}
+
+func (f fuzzU128) Rem64() error {
+	b1, b2 := f.source.BigU128And64()
+	u1, u2 := accU128FromBigInt(b1), accU64FromBigInt(b2)
+	if b2.Cmp(big0) == 0 {
+		return nil // Just skip this iteration, we know what happens!
+	}
+	rb := new(big.Int).Rem(b1, b2)
+	ru := u1.Rem64(u2)
 	return checkEqualU128(ru, rb)
 }
 
@@ -564,40 +651,71 @@ func (f fuzzU128) QuoRem() error {
 	return nil
 }
 
+func (f fuzzU128) QuoRem64() error {
+	b1, b2 := f.source.BigU128And64()
+	u1, u2 := accU128FromBigInt(b1), accU64FromBigInt(b2)
+	if b2.Cmp(big0) == 0 {
+		return nil // Just skip this iteration, we know what happens!
+	}
+
+	rbq := new(big.Int).Quo(b1, b2)
+	rbr := new(big.Int).Rem(b1, b2)
+	ruq, rur := u1.QuoRem64(u2)
+	if err := checkEqualU128(ruq, rbq); err != nil {
+		return err
+	}
+	if err := checkEqualU128(rur, rbr); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (f fuzzU128) Cmp() error {
 	b1, b2 := f.source.BigU128x2()
 	u1, u2 := accU128FromBigInt(b1), accU128FromBigInt(b2)
-	return checkEqualInt(b1.Cmp(b2), u1.Cmp(u2))
+	return checkEqualInt(u1.Cmp(u2), b1.Cmp(b2))
+}
+
+func (f fuzzU128) Cmp64() error {
+	b1, b2 := f.source.BigU128And64()
+	u1, u2 := accU128FromBigInt(b1), accU64FromBigInt(b2)
+	return checkEqualInt(u1.Cmp64(u2), b1.Cmp(b2))
 }
 
 func (f fuzzU128) Equal() error {
 	b1, b2 := f.source.BigU128x2()
 	u1, u2 := accU128FromBigInt(b1), accU128FromBigInt(b2)
-	return checkEqualBool(b1.Cmp(b2) == 0, u1.Equal(u2))
+	return checkEqualBool(u1.Equal(u2), b1.Cmp(b2) == 0)
+}
+
+func (f fuzzU128) Equal64() error {
+	b1, b2 := f.source.BigU128And64()
+	u1, u2 := accU128FromBigInt(b1), accU64FromBigInt(b2)
+	return checkEqualBool(u1.Equal64(u2), b1.Cmp(b2) == 0)
 }
 
 func (f fuzzU128) GreaterThan() error {
 	b1, b2 := f.source.BigU128x2()
 	u1, u2 := accU128FromBigInt(b1), accU128FromBigInt(b2)
-	return checkEqualBool(b1.Cmp(b2) > 0, u1.GreaterThan(u2))
+	return checkEqualBool(u1.GreaterThan(u2), b1.Cmp(b2) > 0)
 }
 
 func (f fuzzU128) GreaterOrEqualTo() error {
 	b1, b2 := f.source.BigU128x2()
 	u1, u2 := accU128FromBigInt(b1), accU128FromBigInt(b2)
-	return checkEqualBool(b1.Cmp(b2) >= 0, u1.GreaterOrEqualTo(u2))
+	return checkEqualBool(u1.GreaterOrEqualTo(u2), b1.Cmp(b2) >= 0)
 }
 
 func (f fuzzU128) LessThan() error {
 	b1, b2 := f.source.BigU128x2()
 	u1, u2 := accU128FromBigInt(b1), accU128FromBigInt(b2)
-	return checkEqualBool(b1.Cmp(b2) < 0, u1.LessThan(u2))
+	return checkEqualBool(u1.LessThan(u2), b1.Cmp(b2) < 0)
 }
 
 func (f fuzzU128) LessOrEqualTo() error {
 	b1, b2 := f.source.BigU128x2()
 	u1, u2 := accU128FromBigInt(b1), accU128FromBigInt(b2)
-	return checkEqualBool(b1.Cmp(b2) <= 0, u1.LessOrEqualTo(u2))
+	return checkEqualBool(u1.LessOrEqualTo(u2), b1.Cmp(b2) <= 0)
 }
 
 func (f fuzzU128) And() error {
@@ -799,36 +917,49 @@ func (f fuzzI128) Add() error {
 	return checkEqualI128(ru, rb)
 }
 
+func (f fuzzI128) Add64() error {
+	b1, b2 := f.source.BigI128And64()
+	i1, i2 := accI128FromBigInt(b1), accI64FromBigInt(b2)
+	rb := new(big.Int).Add(b1, b2)
+	rb = simulateBigI128Overflow(rb)
+	ri := i1.Add64(i2)
+	return checkEqualI128(ri, rb)
+}
+
 func (f fuzzI128) Sub() error {
 	b1, b2 := f.source.BigI128x2()
-	u1, u2 := accI128FromBigInt(b1), accI128FromBigInt(b2)
+	i1, i2 := accI128FromBigInt(b1), accI128FromBigInt(b2)
 	rb := new(big.Int).Sub(b1, b2)
 	rb = simulateBigI128Overflow(rb)
-	ru := u1.Sub(u2)
-	return checkEqualI128(ru, rb)
+	ri := i1.Sub(i2)
+	return checkEqualI128(ri, rb)
+}
+
+func (f fuzzI128) Sub64() error {
+	b1, b2 := f.source.BigI128And64()
+	i1, i2 := accI128FromBigInt(b1), accI64FromBigInt(b2)
+	rb := new(big.Int).Sub(b1, b2)
+	rb = simulateBigI128Overflow(rb)
+	ri := i1.Sub64(i2)
+	return checkEqualI128(ri, rb)
 }
 
 func (f fuzzI128) Mul() error {
 	b1, b2 := f.source.BigI128x2()
 	u1, u2 := accI128FromBigInt(b1), accI128FromBigInt(b2)
 	rb := new(big.Int).Mul(b1, b2)
-
-	if rb.Cmp(maxBigI128) > 0 {
-		// simulate overflow
-		gap := new(big.Int)
-		gap.Sub(rb, minBigI128)
-		r := new(big.Int).Rem(gap, wrapBigU128)
-		rb = r.Add(r, minBigI128)
-	} else if rb.Cmp(minBigI128) < 0 {
-		// simulate underflow
-		gap := new(big.Int).Set(rb)
-		gap.Sub(maxBigI128, gap)
-		r := new(big.Int).Rem(gap, wrapBigU128)
-		rb = r.Sub(maxBigI128, r)
-	}
-
+	rb = simulateBigI128Overflow(rb)
 	ru := u1.Mul(u2)
 	return checkEqualI128(ru, rb)
+}
+
+func (f fuzzI128) Mul64() error {
+	b1, b2 := f.source.BigI128And64()
+	i1, i2 := accI128FromBigInt(b1), accI64FromBigInt(b2)
+	rb := new(big.Int).Mul(b1, b2)
+	rb = simulateBigI128Overflow(rb)
+	ri := i1.Mul64(i2)
+	return checkEqualI128(ri, rb)
 }
 
 func (f fuzzI128) Quo() error {
@@ -845,6 +976,22 @@ func (f fuzzI128) Quo() error {
 	return checkEqualI128(ru, rb)
 }
 
+func (f fuzzI128) Quo64() error {
+	b1, b2 := f.source.BigI128And64()
+	i1, i2 := accI128FromBigInt(b1), accI64FromBigInt(b2)
+	if b2.Cmp(big0) == 0 {
+		return nil // Just skip this iteration, we know what happens!
+	}
+	if i1 == MinI128 && i2 == -1 {
+		// Skip overflow corner case, it's (not yet, FIXME) handled in the
+		// unit tests and not meaningful here in the fuzzer.
+		return nil
+	}
+	rb := new(big.Int).Quo(b1, b2)
+	ri := i1.Quo64(i2)
+	return checkEqualI128(ri, rb)
+}
+
 func (f fuzzI128) Rem() error {
 	b1, b2 := f.source.BigI128x2()
 	u1, u2 := accI128FromBigInt(b1), accI128FromBigInt(b2)
@@ -857,6 +1004,22 @@ func (f fuzzI128) Rem() error {
 	rb := new(big.Int).Rem(b1, b2)
 	ru := u1.Rem(u2)
 	return checkEqualI128(ru, rb)
+}
+
+func (f fuzzI128) Rem64() error {
+	b1, b2 := f.source.BigI128And64()
+	i1, i2 := accI128FromBigInt(b1), accI64FromBigInt(b2)
+	if b2.Cmp(big0) == 0 {
+		return nil // Just skip this iteration, we know what happens!
+	}
+	if i1 == MinI128 && i2 == -1 {
+		// Skip overflow corner case, it's (not yet, FIXME) handled in the
+		// unit tests and not meaningful here in the fuzzer.
+		return nil
+	}
+	rb := new(big.Int).Rem(b1, b2)
+	ri := i1.Rem64(i2)
+	return checkEqualI128(ri, rb)
 }
 
 func (f fuzzI128) QuoRem() error {
@@ -881,16 +1044,52 @@ func (f fuzzI128) QuoRem() error {
 	return nil
 }
 
+func (f fuzzI128) QuoRem64() error {
+	b1, b2 := f.source.BigI128And64()
+	i1, i2 := accI128FromBigInt(b1), accI64FromBigInt(b2)
+	if b2.Cmp(big0) == 0 {
+		return nil // Just skip this iteration, we know what happens!
+	}
+	if i1 == MinI128 && i2 == -1 {
+		// Skip overflow corner case, it's (not yet, FIXME) handled in the
+		// unit tests and not meaningful here in the fuzzer.
+		return nil
+	}
+
+	rbq := new(big.Int).Quo(b1, b2)
+	rbr := new(big.Int).Rem(b1, b2)
+	riq, rir := i1.QuoRem64(i2)
+	if err := checkEqualI128(riq, rbq); err != nil {
+		return err
+	}
+	if err := checkEqualI128(rir, rbr); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (f fuzzI128) Cmp() error {
 	b1, b2 := f.source.BigI128x2()
 	u1, u2 := accI128FromBigInt(b1), accI128FromBigInt(b2)
 	return checkEqualInt(u1.Cmp(u2), b1.Cmp(b2))
 }
 
+func (f fuzzI128) Cmp64() error {
+	b1, b2 := f.source.BigI128And64()
+	i1, i2 := accI128FromBigInt(b1), accI64FromBigInt(b2)
+	return checkEqualInt(i1.Cmp64(i2), b1.Cmp(b2))
+}
+
 func (f fuzzI128) Equal() error {
 	b1, b2 := f.source.BigI128x2()
-	u1, u2 := accI128FromBigInt(b1), accI128FromBigInt(b2)
-	return checkEqualBool(u1.Equal(u2), b1.Cmp(b2) == 0)
+	i1, i2 := accI128FromBigInt(b1), accI128FromBigInt(b2)
+	return checkEqualBool(i1.Equal(i2), b1.Cmp(b2) == 0)
+}
+
+func (f fuzzI128) Equal64() error {
+	b1, b2 := f.source.BigI128And64()
+	i1, i2 := accI128FromBigInt(b1), accI64FromBigInt(b2)
+	return checkEqualBool(i1.Equal64(i2), b1.Cmp(b2) == 0)
 }
 
 func (f fuzzI128) GreaterThan() error {
@@ -982,29 +1181,29 @@ func (f fuzzI128) String() error {
 
 // NEWOP: func (f fuzzI128) ...() error {}
 
-type big128GenKind int
+type bigGenKind int
 
 const (
-	big128Zero  big128GenKind = 0
-	big128Bits  big128GenKind = 1
-	big128Same  big128GenKind = 2
-	big128Fixed big128GenKind = 3
+	bigGenZero  bigGenKind = 0
+	bigGenBits  bigGenKind = 1
+	bigGenSame  bigGenKind = 2
+	bigGenFixed bigGenKind = 3
 )
 
 type bigU128Gen struct {
-	kind  big128GenKind
+	kind  bigGenKind
 	bits  int
 	fixed *big.Int
 }
 
 func (gen bigU128Gen) Value(r *rando) (v *big.Int) {
 	switch gen.kind {
-	case big128Zero:
+	case bigGenZero:
 		v = new(big.Int)
 
-	case big128Bits:
+	case bigGenBits:
 		v = new(big.Int)
-		if gen.bits <= 0 {
+		if gen.bits <= 0 || gen.bits > 128 {
 			panic("misconfigured bits")
 		} else if gen.bits <= 64 {
 			v = v.Rand(r.rng, maxBigUint64)
@@ -1015,11 +1214,11 @@ func (gen bigU128Gen) Value(r *rando) (v *big.Int) {
 		v.And(v, masks[idx])
 		v.SetBit(v, idx, 1)
 
-	case big128Same:
+	case bigGenSame:
 		oper := r.Operands()
 		v = oper[len(oper)-1]
 
-	case big128Fixed:
+	case bigGenFixed:
 		v = new(big.Int)
 		v.Set(gen.fixed)
 
@@ -1033,7 +1232,7 @@ func (gen bigU128Gen) Value(r *rando) (v *big.Int) {
 }
 
 type bigI128Gen struct {
-	kind  big128GenKind
+	kind  bigGenKind
 	bits  int
 	neg   bool
 	fixed *big.Int
@@ -1041,10 +1240,10 @@ type bigI128Gen struct {
 
 func (gen bigI128Gen) Value(r *rando) (v *big.Int) {
 	switch gen.kind {
-	case big128Zero:
+	case bigGenZero:
 		v = new(big.Int)
 
-	case big128Bits:
+	case bigGenBits:
 		v = new(big.Int)
 		if gen.bits <= 0 || gen.bits > 127 { // 128th bit is set aside for the sign
 			panic("misconfigured bits")
@@ -1060,11 +1259,11 @@ func (gen bigI128Gen) Value(r *rando) (v *big.Int) {
 			v.Neg(v)
 		}
 
-	case big128Same:
+	case bigGenSame:
 		oper := r.Operands()
 		v = oper[len(oper)-1]
 
-	case big128Fixed:
+	case bigGenFixed:
 		v = new(big.Int)
 		v.Set(gen.fixed)
 
@@ -1116,6 +1315,12 @@ type rando struct {
 	bigI128x2Schemes [][2]bigI128Gen
 	bigI128x2Cur     int
 
+	bigU128And64Schemes [][2]bigU128Gen
+	bigU128And64Cur     int
+
+	bigI128And64Schemes [][2]bigI128Gen
+	bigI128And64Cur     int
+
 	bigU128AndBitSizeSchemes []bigU128AndBitSizeGen
 	bigU128AndBitSizeCur     int
 
@@ -1140,13 +1345,13 @@ func newRando(rng *rand.Rand) *rando {
 	}
 
 	{ // build bigU128Schemes
-		r.bigU128Schemes = append(r.bigU128Schemes,
-			bigU128Gen{kind: big128Zero},
-			bigU128Gen{kind: big128Fixed, fixed: maxBigUint64},
-			bigU128Gen{kind: big128Fixed, fixed: maxBigU128},
-		)
+		r.bigU128Schemes = []bigU128Gen{
+			bigU128Gen{kind: bigGenZero},
+			bigU128Gen{kind: bigGenFixed, fixed: maxBigUint64},
+			bigU128Gen{kind: bigGenFixed, fixed: maxBigU128},
+		}
 		for i := 1; i <= 128; i++ {
-			r.bigU128Schemes = append(r.bigU128Schemes, bigU128Gen{kind: big128Bits, bits: i})
+			r.bigU128Schemes = append(r.bigU128Schemes, bigU128Gen{kind: bigGenBits, bits: i})
 		}
 	}
 
@@ -1176,21 +1381,40 @@ func newRando(rng *rand.Rand) *rando {
 				r.bigU128x2Schemes = append(r.bigU128x2Schemes, [2]bigU128Gen{u1, u2})
 			}
 			for i := 0; i < samesies; i++ {
-				r.bigU128x2Schemes = append(r.bigU128x2Schemes, [2]bigU128Gen{u1, bigU128Gen{kind: big128Same}})
+				r.bigU128x2Schemes = append(r.bigU128x2Schemes, [2]bigU128Gen{u1, bigU128Gen{kind: bigGenSame}})
 			}
 		}
 	}
 
+	{ // build bigU128And64Schemes
+		bigU64Schemes := []bigU128Gen{
+			bigU128Gen{kind: bigGenZero},
+			bigU128Gen{kind: bigGenFixed, fixed: maxBigUint64},
+		}
+		for i := 1; i <= 64; i++ {
+			bigU64Schemes = append(bigU64Schemes, bigU128Gen{kind: bigGenBits, bits: i})
+		}
+		for _, u1 := range r.bigU128Schemes {
+			for _, u2 := range bigU64Schemes {
+				r.bigU128And64Schemes = append(r.bigU128And64Schemes, [2]bigU128Gen{u1, u2})
+			}
+
+			// FIXME: Samesies doesn't work here due to bit size mismatches:
+			// for i := 0; i < samesies; i++ {
+			//     r.bigU128And64Schemes = append(r.bigU128And64Schemes, [2]bigU128Gen{u1, bigU128Gen{kind: bigGenSame}})
+			// }
+		}
+	}
+
 	{ // build bigI128Schemes
-		r.bigI128Schemes = append(r.bigI128Schemes,
-			bigI128Gen{kind: big128Zero},
-			bigI128Gen{kind: big128Fixed, fixed: maxBigInt64},
-			bigI128Gen{kind: big128Fixed, fixed: maxBigI128},
-			bigI128Gen{kind: big128Fixed, fixed: minBigI128},
-		)
+		r.bigI128Schemes = []bigI128Gen{
+			bigI128Gen{kind: bigGenZero},
+			bigI128Gen{kind: bigGenFixed, fixed: maxBigInt64},
+			bigI128Gen{kind: bigGenFixed, fixed: minBigInt64},
+		}
 		for i := 1; i <= 127; i++ {
 			for n := 0; n < 2; n++ {
-				r.bigI128Schemes = append(r.bigI128Schemes, bigI128Gen{kind: big128Bits, bits: i, neg: n == 0})
+				r.bigI128Schemes = append(r.bigI128Schemes, bigI128Gen{kind: bigGenBits, bits: i, neg: n == 0})
 			}
 		}
 	}
@@ -1201,8 +1425,31 @@ func newRando(rng *rand.Rand) *rando {
 				r.bigI128x2Schemes = append(r.bigI128x2Schemes, [2]bigI128Gen{u1, u2})
 			}
 			for i := 0; i < samesies; i++ {
-				r.bigI128x2Schemes = append(r.bigI128x2Schemes, [2]bigI128Gen{u1, bigI128Gen{kind: big128Same}})
+				r.bigI128x2Schemes = append(r.bigI128x2Schemes, [2]bigI128Gen{u1, bigI128Gen{kind: bigGenSame}})
 			}
+		}
+	}
+
+	{ // build bigI128And64Schemes
+		bigI64Schemes := []bigI128Gen{
+			bigI128Gen{kind: bigGenZero},
+			bigI128Gen{kind: bigGenFixed, fixed: maxBigInt64},
+			bigI128Gen{kind: bigGenFixed, fixed: minBigInt64},
+		}
+		for i := 1; i <= 63; i++ {
+			for n := 0; n < 2; n++ {
+				bigI64Schemes = append(bigI64Schemes, bigI128Gen{kind: bigGenBits, bits: i, neg: n == 0})
+			}
+		}
+		for _, u1 := range r.bigI128Schemes {
+			for _, u2 := range bigI64Schemes {
+				r.bigI128And64Schemes = append(r.bigI128And64Schemes, [2]bigI128Gen{u1, u2})
+			}
+
+			// FIXME: Samesies doesn't work here due to bit size mismatches:
+			// for i := 0; i < samesies; i++ {
+			//     r.bigI128And64Schemes = append(r.bigI128And64Schemes, [2]bigI128Gen{u1, bigI128Gen{kind: bigGenSame}})
+			// }
 		}
 	}
 
@@ -1254,6 +1501,28 @@ func (r *rando) BigI128x2() (b1, b2 *big.Int) {
 	r.bigI128x2Cur++
 	if r.bigI128x2Cur >= len(r.bigI128x2Schemes) {
 		r.bigI128x2Cur = 0
+	}
+	return schemes[0].Value(r), schemes[1].Value(r)
+}
+
+func (r *rando) BigU128And64() (b1, b2 *big.Int) {
+	r.ensureOnePerTest()
+
+	schemes := r.bigU128And64Schemes[r.bigU128And64Cur]
+	r.bigU128And64Cur++
+	if r.bigU128And64Cur >= len(r.bigU128And64Schemes) {
+		r.bigU128And64Cur = 0
+	}
+	return schemes[0].Value(r), schemes[1].Value(r)
+}
+
+func (r *rando) BigI128And64() (b1, b2 *big.Int) {
+	r.ensureOnePerTest()
+
+	schemes := r.bigI128And64Schemes[r.bigI128And64Cur]
+	r.bigI128And64Cur++
+	if r.bigI128And64Cur >= len(r.bigI128And64Schemes) {
+		r.bigI128And64Cur = 0
 	}
 	return schemes[0].Value(r), schemes[1].Value(r)
 }
