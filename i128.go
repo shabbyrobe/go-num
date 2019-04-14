@@ -19,9 +19,21 @@ type I128 struct {
 func I128FromRaw(hi, lo uint64) I128 { return I128{hi: hi, lo: lo} }
 
 func I128From64(v int64) (out I128) {
-	out.lo = uint64(v)
-	out.hi = ^((out.lo >> 63) + maxUint64)
-	return out
+	// There's a no-branch way of calculating this:
+	//   out.lo = uint64(v)
+	//   out.hi = ^((out.lo >> 63) + maxUint64)
+	//
+	// There may be a better one than that, but that's the one I found. Bogus
+	// microbenchmarks on an i7-3820 and an i7-6770HQ showed it may possibly be
+	// slightly faster, but at huge cost to the inliner. The no-branch
+	// version eats 20 more points out of Go 1.12's inlining budget of 80 than
+	// the 'if v < 0' verson, which is probably worse overall.
+
+	var hi uint64
+	if v < 0 {
+		hi = maxUint64
+	}
+	return I128{hi: hi, lo: uint64(v)}
 }
 
 func I128From32(v int32) I128   { return I128From64(int64(v)) }
