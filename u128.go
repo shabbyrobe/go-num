@@ -326,9 +326,25 @@ func (u U128) Add(n U128) (v U128) {
 	return v
 }
 
+func (u U128) Add64(n uint64) (v U128) {
+	v.lo = u.lo + n
+	if u.lo > v.lo {
+		v.hi++
+	}
+	return v
+}
+
 func (u U128) Sub(n U128) (v U128) {
 	v.lo = u.lo - n.lo
 	v.hi = u.hi - n.hi
+	if u.lo < v.lo {
+		v.hi--
+	}
+	return v
+}
+
+func (u U128) Sub64(n uint64) (v U128) {
+	v.lo = u.lo - n
 	if u.lo < v.lo {
 		v.hi--
 	}
@@ -361,36 +377,69 @@ func (u U128) Cmp(n U128) int {
 	return 0
 }
 
+func (u U128) Cmp64(n uint64) int {
+	if u.hi > 0 || u.lo > n {
+		return 1
+	} else if u.lo < n {
+		return -1
+	}
+	return 0
+}
+
 func (u U128) Equal(n U128) bool {
 	return u.hi == n.hi && u.lo == n.lo
+}
+
+func (u U128) Equal64(n uint64) bool {
+	return u.hi == 0 && u.lo == n
 }
 
 func (u U128) GreaterThan(n U128) bool {
 	return u.hi > n.hi || (u.hi == n.hi && u.lo > n.lo)
 }
 
+func (u U128) GreaterThan64(n uint64) bool {
+	return u.hi > 0 || u.lo > n
+}
+
 func (u U128) GreaterOrEqualTo(n U128) bool {
 	return u.hi > n.hi || (u.hi == n.hi && u.lo >= n.lo)
+}
+
+func (u U128) GreaterThanOrEqualTo64(n uint64) bool {
+	return u.hi > 0 || u.lo >= n
 }
 
 func (u U128) LessThan(n U128) bool {
 	return u.hi < n.hi || (u.hi == n.hi && u.lo < n.lo)
 }
 
+func (u U128) LessThan64(n uint64) bool {
+	return u.hi == 0 && u.lo < n
+}
+
 func (u U128) LessOrEqualTo(n U128) bool {
 	return u.hi < n.hi || (u.hi == n.hi && u.lo <= n.lo)
 }
 
-func (u U128) And(v U128) (out U128) {
-	out.hi = u.hi & v.hi
-	out.lo = u.lo & v.lo
-	return out
+func (u U128) LessOrEqualTo64(n uint64) bool {
+	return u.hi == 0 && u.lo <= n
 }
 
-func (u U128) AndNot(v U128) (out U128) {
-	out.hi = u.hi &^ v.hi
-	out.lo = u.lo &^ v.lo
-	return out
+func (u U128) And(n U128) U128 {
+	u.hi = u.hi & n.hi
+	u.lo = u.lo & n.lo
+	return u
+}
+
+func (u U128) And64(n uint64) U128 {
+	return U128{lo: u.lo & n}
+}
+
+func (u U128) AndNot(n U128) U128 {
+	u.hi = u.hi &^ n.hi
+	u.lo = u.lo &^ n.lo
+	return u
 }
 
 func (u U128) Not() (out U128) {
@@ -399,16 +448,27 @@ func (u U128) Not() (out U128) {
 	return out
 }
 
-func (u U128) Or(v U128) (out U128) {
-	out.hi = u.hi | v.hi
-	out.lo = u.lo | v.lo
+func (u U128) Or(n U128) (out U128) {
+	out.hi = u.hi | n.hi
+	out.lo = u.lo | n.lo
 	return out
 }
 
-func (u U128) Xor(v U128) (out U128) {
-	out.hi = u.hi ^ v.hi
-	out.lo = u.lo ^ v.lo
-	return out
+func (u U128) Or64(n uint64) U128 {
+	u.lo = u.lo | n
+	return u
+}
+
+func (u U128) Xor(v U128) U128 {
+	u.hi = u.hi ^ v.hi
+	u.lo = u.lo ^ v.lo
+	return u
+}
+
+func (u U128) Xor64(v uint64) U128 {
+	u.hi = u.hi ^ 0
+	u.lo = u.lo ^ v
+	return u
 }
 
 // BitLen returns the length of the absolute value of u in bits. The bit length of 0 is 0.
@@ -516,6 +576,21 @@ func (u U128) Mul(n U128) (dest U128) {
 	return dest
 }
 
+func (u U128) Mul64(n uint64) (dest U128) {
+	// NOTE: Copied from Mul() with n.hi removed. There may be a simpler
+	// way to do mul128x64?
+	hl := u.hi * n
+	dest.lo = u.lo * n
+
+	x0, x1 := u.lo&0x00000000ffffffff, u.lo>>32
+	y0, y1 := n&0x00000000ffffffff, n>>32
+	t := x1*y0 + (x0*y0)>>32
+	w1 := (t & 0x00000000ffffffff) + (x0 * y1)
+	dest.hi = (x1 * y1) + (t >> 32) + (w1 >> 32) + hl
+
+	return dest
+}
+
 // See BenchmarkU128QuoRemTZ for the test that helps determine this magic number:
 const divAlgoLeading0Spill = 16
 
@@ -564,6 +639,11 @@ func (u U128) Quo(by U128) (q U128) {
 	} else {
 		return quo128bin(u, by, uLeading0, byLeading0)
 	}
+}
+
+func (u U128) Quo64(by uint64) (q U128) {
+	q.lo = quo128by64(u.hi, u.lo, by)
+	return q
 }
 
 // QuoRem returns the quotient q and remainder r for y != 0. If y == 0, a
@@ -625,11 +705,23 @@ func (u U128) QuoRem(by U128) (q, r U128) {
 	}
 }
 
+func (u U128) QuoRem64(by uint64) (q, r U128) {
+	leading0 := uint(bits.LeadingZeros64(by))
+	q.lo, r.lo = quorem128by64(u.hi, u.lo, by, leading0)
+	return q, r
+}
+
 // Rem returns the remainder of x%y for y != 0. If y == 0, a division-by-zero
 // run-time panic occurs. Rem implements truncated modulus (like Go); see
 // QuoRem for more details.
 func (u U128) Rem(by U128) (r U128) {
 	_, r = u.QuoRem(by)
+	return r
+}
+
+func (u U128) Rem64(by uint64) (r U128) {
+	leading0 := uint(bits.LeadingZeros64(by))
+	_, r.lo = quorem128by64(u.hi, u.lo, by, leading0)
 	return r
 }
 

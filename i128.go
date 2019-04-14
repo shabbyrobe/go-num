@@ -18,12 +18,10 @@ type I128 struct {
 // uint64s representing the hi and lo bits.
 func I128FromRaw(hi, lo uint64) I128 { return I128{hi: hi, lo: lo} }
 
-func I128From64(v int64) I128 {
-	var hi uint64
-	if v < 0 {
-		hi = maxUint64
-	}
-	return I128{hi: hi, lo: uint64(v)}
+func I128From64(v int64) (out I128) {
+	out.lo = uint64(v)
+	out.hi = ^((out.lo >> 63) + maxUint64)
+	return out
 }
 
 func I128From32(v int32) I128   { return I128From64(int64(v)) }
@@ -363,9 +361,35 @@ func (i I128) Add(n I128) (v I128) {
 	return v
 }
 
+func (i I128) Add64(n int64) (v I128) {
+	var hi uint64
+	if n < 0 {
+		hi = maxUint64
+	}
+	v.lo = i.lo + uint64(n)
+	v.hi = i.hi + hi
+	if i.lo > v.lo {
+		v.hi++
+	}
+	return v
+}
+
 func (i I128) Sub(n I128) (out I128) {
 	out.lo = i.lo - n.lo
 	out.hi = i.hi - n.hi
+	if i.lo < out.lo {
+		out.hi--
+	}
+	return out
+}
+
+func (i I128) Sub64(n int64) (out I128) {
+	var hi uint64
+	if n < 0 {
+		hi = maxUint64
+	}
+	out.lo = i.lo - uint64(n)
+	out.hi = i.hi - hi
 	if i.lo < out.lo {
 		out.hi--
 	}
@@ -450,8 +474,35 @@ func (i I128) Cmp(n I128) int {
 	return -1
 }
 
+func (i I128) Cmp64(n int64) int {
+	var nhi uint64
+	var nlo = uint64(n)
+	if n < 0 {
+		nhi = maxUint64
+	}
+	if i.hi == nhi && i.lo == nlo {
+		return 0
+	} else if i.hi&signBit == nhi&signBit {
+		if i.hi > nhi || (i.hi == nhi && i.lo > nlo) {
+			return 1
+		}
+	} else if i.hi&signBit == 0 {
+		return 1
+	}
+	return -1
+}
+
 func (i I128) Equal(n I128) bool {
 	return i.hi == n.hi && i.lo == n.lo
+}
+
+func (i I128) Equal64(n int64) bool {
+	var nhi uint64
+	var nlo = uint64(n)
+	if n < 0 {
+		nhi = maxUint64
+	}
+	return i.hi == nhi && i.lo == nlo
 }
 
 func (i I128) GreaterThan(n I128) bool {
@@ -502,6 +553,30 @@ func (i I128) LessOrEqualTo(n I128) bool {
 //
 func (i I128) Mul(n I128) (dest I128) {
 	// Unfortunately, this is slightly too complex for Go 1.11 to inline.
+
+	// Adapted from Warren, Hacker's Delight, p. 132.
+	hl := i.hi*n.lo + i.lo*n.hi
+
+	dest.lo = i.lo * n.lo // lower 64 bits
+
+	// break the multiplication into (x1 << 32 + x0)(y1 << 32 + y0)
+	// which is x1*y1 << 64 + (x0*y1 + x1*y0) << 32 + x0*y0
+	// so now we can do 64 bit multiplication and addition and
+	// shift the results into the right place
+	x0, x1 := i.lo&0x00000000ffffffff, i.lo>>32
+	y0, y1 := n.lo&0x00000000ffffffff, n.lo>>32
+	t := x1*y0 + (x0*y0)>>32
+	w1 := (t & 0x00000000ffffffff) + (x0 * y1)
+	dest.hi = (x1 * y1) + (t >> 32) + (w1 >> 32) + hl
+
+	return dest
+}
+
+func (i I128) Mul64(n64 int64) (dest I128) {
+	var n = I128{lo: uint64(n64)}
+	if n64 < 0 {
+		n.hi = maxUint64
+	}
 
 	// Adapted from Warren, Hacker's Delight, p. 132.
 	hl := i.hi*n.lo + i.lo*n.hi

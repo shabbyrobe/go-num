@@ -246,6 +246,24 @@ func TestI128Dec(t *testing.T) {
 	}
 }
 
+func TestI128From64(t *testing.T) {
+	for idx, tc := range []struct {
+		in  int64
+		out I128
+	}{
+		{0, i64(0)},
+		{maxInt64, i128s("0x7F FF FF FF FF FF FF FF")},
+		{-1, i128s("-1")},
+		{minInt64, i128s("-9223372036854775808")},
+	} {
+		t.Run(fmt.Sprintf("%d/%d=%s", idx, tc.in, tc.out), func(t *testing.T) {
+			tt := assert.WrapTB(t)
+			result := I128From64(tc.in)
+			tt.MustEqual(tc.out, result, "found: (%d, %d), expected (%d, %d)", result.hi, result.lo, tc.out.hi, tc.out.lo)
+		})
+	}
+}
+
 func TestI128FromBigInt(t *testing.T) {
 	for idx, tc := range []struct {
 		a *big.Int
@@ -633,18 +651,18 @@ var (
 
 func BenchmarkI128FromCast(b *testing.B) {
 	// Establish a baseline for a runtime 64-bit cast:
-	b.Run("I64fromU64", func(b *testing.B) {
+	b.Run("I64FromU64", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			BenchInt64Result = int64(U64CastInput)
 		}
 	})
 
-	b.Run("I128fromI64", func(b *testing.B) {
+	b.Run("I128FromI64", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			BenchI128Result = I128From64(I64CastInput)
 		}
 	})
-	b.Run("I128fromU64", func(b *testing.B) {
+	b.Run("I128FromU64", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			BenchI128Result = I128FromU64(U64CastInput)
 		}
