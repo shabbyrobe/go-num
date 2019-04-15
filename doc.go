@@ -17,6 +17,12 @@ Simple example:
 	fmt.Println(u1.Mul(u2))
 	// Output: 340282366920938463426481119284349108225
 
+64-bit helpers:
+
+	u1 := U128From64(math.MaxUint64)
+	fmt.Println(u1.Mul64(math.MaxUint64))
+	// Output: 340282366920938463426481119284349108225
+
 U128 and I128 can be created from a variety of sources:
 
 	U128FromRaw(hi, lo uint64) U128

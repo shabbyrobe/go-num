@@ -246,6 +246,26 @@ func TestI128Dec(t *testing.T) {
 	}
 }
 
+func TestI128Format(t *testing.T) {
+	for _, tc := range []struct {
+		in  I128
+		f   string
+		out string
+	}{
+		{i64(123456789), "%d", "123456789"},
+		{i64(12), "%2d", "12"},
+		{i64(12), "%3d", " 12"},
+		{i64(12), "%02d", "12"},
+		{i64(12), "%03d", "012"},
+		{i64(123456789), "%s", "123456789"},
+	} {
+		t.Run("", func(t *testing.T) {
+			tt := assert.WrapTB(t)
+			tt.MustEqual(tc.out, fmt.Sprintf(tc.f, tc.in))
+		})
+	}
+}
+
 func TestI128From64(t *testing.T) {
 	for idx, tc := range []struct {
 		in  int64
