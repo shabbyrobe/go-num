@@ -40,6 +40,7 @@ const (
 	fuzzFromFloat64      fuzzOp = "fromfloat64"
 	fuzzGreaterOrEqualTo fuzzOp = "gte"
 	fuzzGreaterThan      fuzzOp = "gt"
+	fuzzGreaterThan64    fuzzOp = "gt64"
 	fuzzInc              fuzzOp = "inc"
 	fuzzLessOrEqualTo    fuzzOp = "lte"
 	fuzzLessThan         fuzzOp = "lt"
@@ -99,6 +100,7 @@ var allFuzzOps = []fuzzOp{
 	fuzzFromFloat64,
 	fuzzGreaterOrEqualTo,
 	fuzzGreaterThan,
+	fuzzGreaterThan64,
 	fuzzInc,
 	fuzzLessOrEqualTo,
 	fuzzLessThan,
@@ -142,6 +144,7 @@ type fuzzOps interface {
 	FromFloat64() error
 	GreaterOrEqualTo() error
 	GreaterThan() error
+	GreaterThan64() error
 	Inc() error
 	LessOrEqualTo() error
 	LessThan() error
@@ -289,6 +292,8 @@ func TestFuzz(t *testing.T) {
 					err = fuzzImpl.GreaterOrEqualTo()
 				case fuzzGreaterThan:
 					err = fuzzImpl.GreaterThan()
+				case fuzzGreaterThan64:
+					err = fuzzImpl.GreaterThan64()
 				case fuzzInc:
 					err = fuzzImpl.Inc()
 				case fuzzLessOrEqualTo:
@@ -420,7 +425,7 @@ func (op fuzzOp) Print(operands ...*big.Int) string {
 		fuzzCmp,
 		fuzzEqual,
 		fuzzGreaterOrEqualTo,
-		fuzzGreaterThan,
+		fuzzGreaterThan, fuzzGreaterThan64,
 		fuzzSub:
 
 		// simple binary case:
@@ -457,7 +462,7 @@ func (op fuzzOp) String() string {
 		return "=="
 	case fuzzFromFloat64:
 		return "fromfloat64()"
-	case fuzzGreaterThan:
+	case fuzzGreaterThan, fuzzGreaterThan64:
 		return ">"
 	case fuzzGreaterOrEqualTo:
 		return ">="
@@ -698,6 +703,12 @@ func (f fuzzU128) GreaterThan() error {
 	b1, b2 := f.source.BigU128x2()
 	u1, u2 := accU128FromBigInt(b1), accU128FromBigInt(b2)
 	return checkEqualBool(u1.GreaterThan(u2), b1.Cmp(b2) > 0)
+}
+
+func (f fuzzU128) GreaterThan64() error {
+	b1, b2 := f.source.BigU128And64()
+	u1, u2 := accU128FromBigInt(b1), accU64FromBigInt(b2)
+	return checkEqualBool(u1.GreaterThan64(u2), b1.Cmp(b2) > 0)
 }
 
 func (f fuzzU128) GreaterOrEqualTo() error {
@@ -1096,6 +1107,12 @@ func (f fuzzI128) GreaterThan() error {
 	b1, b2 := f.source.BigI128x2()
 	u1, u2 := accI128FromBigInt(b1), accI128FromBigInt(b2)
 	return checkEqualBool(u1.GreaterThan(u2), b1.Cmp(b2) > 0)
+}
+
+func (f fuzzI128) GreaterThan64() error {
+	b1, b2 := f.source.BigI128And64()
+	i1, i2 := accI128FromBigInt(b1), accI64FromBigInt(b2)
+	return checkEqualBool(i1.GreaterThan64(i2), b1.Cmp(b2) > 0)
 }
 
 func (f fuzzI128) GreaterOrEqualTo() error {
