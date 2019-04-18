@@ -408,7 +408,7 @@ func (u U128) GreaterOrEqualTo(n U128) bool {
 	return u.hi > n.hi || (u.hi == n.hi && u.lo >= n.lo)
 }
 
-func (u U128) GreaterThanOrEqualTo64(n uint64) bool {
+func (u U128) GreaterOrEqualTo64(n uint64) bool {
 	return u.hi > 0 || u.lo >= n
 }
 

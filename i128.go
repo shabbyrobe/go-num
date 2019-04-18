@@ -553,9 +553,42 @@ func (i I128) GreaterOrEqualTo(n I128) bool {
 	return false
 }
 
+func (i I128) GreaterOrEqualTo64(n int64) bool {
+	var nhi uint64
+	var nlo = uint64(n)
+	if n < 0 {
+		nhi = maxUint64
+	}
+
+	if i.hi == nhi && i.lo == nlo {
+		return true
+	}
+	if i.hi&signBit == nhi&signBit {
+		return i.hi > nhi || (i.hi == nhi && i.lo > nlo)
+	} else if i.hi&signBit == 0 {
+		return true
+	}
+	return false
+}
+
 func (i I128) LessThan(n I128) bool {
 	if i.hi&signBit == n.hi&signBit {
 		return i.hi < n.hi || (i.hi == n.hi && i.lo < n.lo)
+	} else if i.hi&signBit != 0 {
+		return true
+	}
+	return false
+}
+
+func (i I128) LessThan64(n int64) bool {
+	var nhi uint64
+	var nlo = uint64(n)
+	if n < 0 {
+		nhi = maxUint64
+	}
+
+	if i.hi&signBit == nhi&signBit {
+		return i.hi < nhi || (i.hi == nhi && i.lo < nlo)
 	} else if i.hi&signBit != 0 {
 		return true
 	}
@@ -568,6 +601,24 @@ func (i I128) LessOrEqualTo(n I128) bool {
 	}
 	if i.hi&signBit == n.hi&signBit {
 		return i.hi < n.hi || (i.hi == n.hi && i.lo < n.lo)
+	} else if i.hi&signBit != 0 {
+		return true
+	}
+	return false
+}
+
+func (i I128) LessOrEqualTo64(n int64) bool {
+	var nhi uint64
+	var nlo = uint64(n)
+	if n < 0 {
+		nhi = maxUint64
+	}
+
+	if i.hi == nhi && i.lo == nlo {
+		return true
+	}
+	if i.hi&signBit == nhi&signBit {
+		return i.hi < nhi || (i.hi == nhi && i.lo < nlo)
 	} else if i.hi&signBit != 0 {
 		return true
 	}
