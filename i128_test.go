@@ -151,20 +151,39 @@ func TestI128AsFloat64Random(t *testing.T) {
 
 	bts := make([]byte, 16)
 
-	for i := 0; i < 100000; i++ {
-		rand.Read(bts)
+	for i := 0; i < 1000; i++ {
+		for bits := uint(1); bits <= 127; bits++ {
+			rand.Read(bts)
 
-		num := I128{}
-		num.lo = binary.LittleEndian.Uint64(bts)
-		num.hi = binary.LittleEndian.Uint64(bts[8:])
+			var loMask, hiMask uint64
+			var loSet, hiSet uint64
+			if bits > 64 {
+				loMask = maxUint64
+				hiMask = (1 << (bits - 64)) - 1
+				hiSet = 1 << (bits - 64 - 1)
+			} else {
+				loMask = (1 << bits) - 1
+				loSet = 1 << (bits - 1)
+			}
 
-		af := num.AsFloat64()
-		bf := new(big.Float).SetFloat64(af)
-		rf := num.AsBigFloat()
+			num := I128{}
+			num.lo = (binary.LittleEndian.Uint64(bts) & loMask) | loSet
+			num.hi = (binary.LittleEndian.Uint64(bts[8:]) & hiMask) | hiSet
 
-		diff := new(big.Float).Sub(rf, bf)
-		pct := new(big.Float).Quo(diff, rf)
-		tt.MustAssert(pct.Cmp(floatDiffLimit) < 0, "%s: %.20f > %.20f", num, diff, floatDiffLimit)
+			for neg := 0; neg <= 1; neg++ {
+				if neg == 1 {
+					num = num.Neg()
+				}
+
+				af := num.AsFloat64()
+				bf := new(big.Float).SetFloat64(af)
+				rf := num.AsBigFloat()
+
+				diff := new(big.Float).Sub(rf, bf)
+				pct := new(big.Float).Quo(diff, rf)
+				tt.MustAssert(pct.Cmp(floatDiffLimit) < 0, "%s: %.20f > %.20f", num, diff, floatDiffLimit)
+			}
+		}
 	}
 }
 
@@ -653,8 +672,9 @@ func TestI128Sub(t *testing.T) {
 }
 
 var (
-	BenchI128Result  I128
-	BenchInt64Result int64
+	BenchI128Result            I128
+	BenchInt64Result           int64
+	BenchmarkI128Float64Result float64
 )
 
 func BenchmarkI128Add(b *testing.B) {
@@ -670,6 +690,27 @@ func BenchmarkI128Add(b *testing.B) {
 		b.Run(fmt.Sprintf("%d/%s", idx, tc.name), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				BenchI128Result = tc.a.Add(tc.b)
+			}
+		})
+	}
+}
+
+func BenchmarkI128AsFloat(b *testing.B) {
+	for idx, tc := range []struct {
+		name string
+		in   I128
+	}{
+		{"zero", I128{}},
+		{"one", i64(1)},
+		{"minusone", i64(-1)},
+		{"maxInt64", i64(maxInt64)},
+		{"gt64bit", i128s("0x1 00000000 00000000")},
+		{"minInt64", i64(minInt64)},
+		{"minusgt64bit", i128s("-0x1 00000000 00000000")},
+	} {
+		b.Run(fmt.Sprintf("%d/%s", idx, tc.name), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				BenchmarkI128Float64Result = tc.in.AsFloat64()
 			}
 		})
 	}

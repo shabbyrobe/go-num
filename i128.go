@@ -301,20 +301,18 @@ func (i I128) AsBigFloat() (b *big.Float) {
 }
 
 func (i I128) AsFloat64() float64 {
-	if i.hi == 0 && i.lo == 0 {
-		return 0
-	} else if i.hi&signBit != 0 {
-		if i.hi == maxUint64 {
-			return -float64((^i.lo) + 1)
+	if i.hi == 0 {
+		if i.lo == 0 {
+			return 0
 		} else {
-			return (-float64(^i.hi) * maxUint64Float) + -float64(^i.lo)
-		}
-	} else {
-		if i.hi == 0 {
 			return float64(i.lo)
-		} else {
-			return (float64(i.hi) * maxUint64Float) + float64(i.lo)
 		}
+	} else if i.hi == maxUint64 {
+		return -float64((^i.lo) + 1)
+	} else if i.hi&signBit == 0 {
+		return (float64(i.hi) * maxUint64Float) + float64(i.lo)
+	} else {
+		return (-float64(^i.hi) * maxUint64Float) + -float64(^i.lo)
 	}
 }
 
