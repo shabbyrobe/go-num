@@ -31,9 +31,11 @@ var (
 	MaxI128 = I128{hi: 0x7FFFFFFFFFFFFFFF, lo: 0xFFFFFFFFFFFFFFFF}
 	MinI128 = I128{hi: 0x8000000000000000, lo: 0}
 	MaxU128 = U128{hi: maxUint64, lo: maxUint64}
+	MaxU256 = U256{hi: maxUint64, hm: maxUint64, lm: maxUint64, lo: maxUint64}
 
 	zeroI128 I128
 	zeroU128 U128
+	zeroU256 U256
 
 	minusOne = I128{hi: 0xFFFFFFFFFFFFFFFF, lo: 0xFFFFFFFFFFFFFFFF}
 
@@ -41,7 +43,8 @@ var (
 	big1 = new(big.Int).SetInt64(1)
 
 	maxBigUint64  = new(big.Int).SetUint64(maxUint64)
-	maxBigU128, _ = new(big.Int).SetString("340282366920938463463374607431768211455", 10)
+	maxBigU128, _ = new(big.Int).SetString("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF", 0)
+	maxBigU256, _ = new(big.Int).SetString("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF", 0)
 	maxBigInt64   = new(big.Int).SetUint64(maxInt64)
 	minBigInt64   = new(big.Int).SetInt64(minInt64)
 
@@ -76,5 +79,6 @@ var (
 	maxRepresentableUint64Float  = math.Nextafter(maxUint64Float, 0)           // < (1<<64)
 	wrapRepresentableUint64Float = math.Nextafter(maxUint64Float, math.Inf(1)) // >= (1<<64)
 
-	maxRepresentableU128Float = math.Nextafter(float64(340282366920938463463374607431768211455), 0) // < (1<<128)
+	maxRepresentableU128Float = math.Nextafter(float64(340282366920938463463374607431768211455), 0)                                        // < (1<<128)
+	maxRepresentableU256Float = math.Nextafter(float64(115792089237316195423570985008687907853269984665640564039457584007913129639936), 0) // < (1<<128)
 )

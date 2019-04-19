@@ -75,6 +75,14 @@ func accU128FromBigInt(b *big.Int) U128 {
 	return u
 }
 
+func accU256FromBigInt(b *big.Int) U256 {
+	u, acc := U256FromBigInt(b)
+	if !acc {
+		panic(fmt.Errorf("num: inaccurate conversion to U256 in fuzz tester for %s", b))
+	}
+	return u
+}
+
 func accI128FromBigInt(b *big.Int) I128 {
 	i, acc := I128FromBigInt(b)
 	if !acc {
@@ -133,7 +141,7 @@ func randomBigU128(rng *rand.Rand) *big.Int {
 	} else {
 		v = v.Rand(rng, maxBigU128)
 	}
-	v.And(v, masks[bits])
+	v.And(v, masks128[bits])
 	v.SetBit(v, bits, 1)
 	return v
 }

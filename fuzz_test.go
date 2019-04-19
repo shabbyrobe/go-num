@@ -15,7 +15,10 @@ type fuzzType string
 // fuzzDefaultIterations should be configured to guarantee all of the argument
 // schemes execute at least once for each op in a reasonable time.
 // This is the equivalent of passing -num.fuzziter=<...> to 'go test':
-const fuzzDefaultIterations = 20000
+//
+// FIXME: it should be possible to calculate this dynamically on a per-fuzztype
+// basis; the 256-bit fuzzer needs more goes to hit all the cases.
+const fuzzDefaultIterations = 100000
 
 // These ops are all enabled by default. You can instead pass them explicitly
 // on the command line like so: '-num.fuzzop=add -num.fuzzop=sub', or you can
@@ -70,15 +73,16 @@ const (
 // These types are all enabled by default. You can instead pass them explicitly
 // on the command line like so: '-num.fuzztype=u128 -num.fuzztype=i128'
 const (
-	fuzzTypeU128 fuzzType = "u128"
 	fuzzTypeI128 fuzzType = "i128"
+	fuzzTypeU128 fuzzType = "u128"
+	fuzzTypeU256 fuzzType = "u256"
 )
 
 var (
 	u128FloatLimit = math.Nextafter(maxRepresentableU128Float, math.Inf(1))
 )
 
-var allFuzzTypes = []fuzzType{fuzzTypeU128, fuzzTypeI128}
+var allFuzzTypes = []fuzzType{fuzzTypeU128, fuzzTypeI128, fuzzTypeU256}
 
 // allFuzzOps are active by default.
 //
@@ -198,6 +202,13 @@ func checkEqualU128(u U128, b *big.Int) error {
 	return nil
 }
 
+func checkEqualU256(u U256, b *big.Int) error {
+	if u.AsBigInt().Cmp(b) != 0 {
+		return fmt.Errorf("u256(%s) != big(%s)", u.String(), b.String())
+	}
+	return nil
+}
+
 func checkEqualI128(i I128, b *big.Int) error {
 	if i.AsBigInt().Cmp(b) != 0 {
 		return fmt.Errorf("i128(%s) != big(%s)", i.String(), b.String())
@@ -246,6 +257,8 @@ func TestFuzz(t *testing.T) {
 		switch fuzzType {
 		case fuzzTypeU128:
 			fuzzTypes = append(fuzzTypes, &fuzzU128{source: source})
+		case fuzzTypeU256:
+			fuzzTypes = append(fuzzTypes, &fuzzU256{source: source})
 		case fuzzTypeI128:
 			fuzzTypes = append(fuzzTypes, &fuzzI128{source: source})
 		default:
@@ -1249,6 +1262,276 @@ func (f fuzzI128) String() error {
 
 // NEWOP: func (f fuzzI128) ...() error {}
 
+type fuzzU256 struct {
+	source *rando
+}
+
+func (f fuzzU256) Name() string { return "U256" }
+
+func (f fuzzU256) Abs() error {
+	return nil // Always succeeds!
+}
+
+func (f fuzzU256) Inc() error {
+	// Not implemented
+	return nil
+}
+
+func (f fuzzU256) Dec() error {
+	// Not implemented
+	return nil
+}
+
+func (f fuzzU256) Add() error {
+	// Not implemented
+	return nil
+}
+
+func (f fuzzU256) Add64() error {
+	// Not implemented
+	return nil
+}
+
+func (f fuzzU256) Sub() error {
+	// Not implemented
+	return nil
+}
+
+func (f fuzzU256) Sub64() error {
+	// Not implemented
+	return nil
+}
+
+func (f fuzzU256) Mul() error {
+	// Not implemented
+	return nil
+}
+
+func (f fuzzU256) Mul64() error {
+	// Not implemented
+	return nil
+}
+
+func (f fuzzU256) Quo() error {
+	b1, b2 := f.source.BigU256x2()
+	u1, u2 := accU256FromBigInt(b1), accU256FromBigInt(b2)
+	if b2.Cmp(big0) == 0 {
+		return nil // Just skip this iteration, we know what happens!
+	}
+	rb := new(big.Int).Quo(b1, b2)
+	ru := u1.Quo(u2)
+	return checkEqualU256(ru, rb)
+}
+
+func (f fuzzU256) Quo64() error {
+	// Not implemented
+	return nil
+}
+
+func (f fuzzU256) Rem() error {
+	b1, b2 := f.source.BigU256x2()
+	u1, u2 := accU256FromBigInt(b1), accU256FromBigInt(b2)
+	if b2.Cmp(big0) == 0 {
+		return nil // Just skip this iteration, we know what happens!
+	}
+	rb := new(big.Int).Rem(b1, b2)
+	ru := u1.Rem(u2)
+	return checkEqualU256(ru, rb)
+}
+
+func (f fuzzU256) Rem64() error {
+	// Not implemented
+	return nil
+}
+
+func (f fuzzU256) QuoRem() error {
+	b1, b2 := f.source.BigU256x2()
+	u1, u2 := accU256FromBigInt(b1), accU256FromBigInt(b2)
+	if b2.Cmp(big0) == 0 {
+		return nil // Just skip this iteration, we know what happens!
+	}
+
+	rbq := new(big.Int).Quo(b1, b2)
+	rbr := new(big.Int).Rem(b1, b2)
+	ruq, rur := u1.QuoRem(u2)
+	if err := checkEqualU256(ruq, rbq); err != nil {
+		return err
+	}
+	if err := checkEqualU256(rur, rbr); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (f fuzzU256) QuoRem64() error {
+	// Not implemented
+	return nil
+}
+
+func (f fuzzU256) Cmp() error {
+	b1, b2 := f.source.BigU256x2()
+	u1, u2 := accU256FromBigInt(b1), accU256FromBigInt(b2)
+	return checkEqualInt(u1.Cmp(u2), b1.Cmp(b2))
+}
+
+func (f fuzzU256) Cmp64() error {
+	// Not implemented
+	return nil
+}
+
+func (f fuzzU256) Equal() error {
+	b1, b2 := f.source.BigU256x2()
+	u1, u2 := accU256FromBigInt(b1), accU256FromBigInt(b2)
+	return checkEqualBool(u1.Equal(u2), b1.Cmp(b2) == 0)
+}
+
+func (f fuzzU256) Equal64() error {
+	// Not implemented
+	return nil
+}
+
+func (f fuzzU256) GreaterThan() error {
+	b1, b2 := f.source.BigU256x2()
+	u1, u2 := accU256FromBigInt(b1), accU256FromBigInt(b2)
+	return checkEqualBool(u1.GreaterThan(u2), b1.Cmp(b2) > 0)
+}
+
+func (f fuzzU256) GreaterThan64() error {
+	// Not implemented
+	return nil
+}
+
+func (f fuzzU256) GreaterOrEqualTo() error {
+	b1, b2 := f.source.BigU256x2()
+	u1, u2 := accU256FromBigInt(b1), accU256FromBigInt(b2)
+	return checkEqualBool(u1.GreaterOrEqualTo(u2), b1.Cmp(b2) >= 0)
+}
+
+func (f fuzzU256) GreaterOrEqualTo64() error {
+	// Not implemented
+	return nil
+}
+
+func (f fuzzU256) LessThan() error {
+	b1, b2 := f.source.BigU256x2()
+	u1, u2 := accU256FromBigInt(b1), accU256FromBigInt(b2)
+	return checkEqualBool(u1.LessThan(u2), b1.Cmp(b2) < 0)
+}
+
+func (f fuzzU256) LessThan64() error {
+	// Not implemented
+	return nil
+}
+
+func (f fuzzU256) LessOrEqualTo() error {
+	b1, b2 := f.source.BigU256x2()
+	u1, u2 := accU256FromBigInt(b1), accU256FromBigInt(b2)
+	return checkEqualBool(u1.LessOrEqualTo(u2), b1.Cmp(b2) <= 0)
+}
+
+func (f fuzzU256) LessOrEqualTo64() error {
+	// Not implemented
+	return nil
+}
+
+func (f fuzzU256) And() error {
+	b1, b2 := f.source.BigU256x2()
+	u1, u2 := accU256FromBigInt(b1), accU256FromBigInt(b2)
+	rb := new(big.Int).And(b1, b2)
+	ru := u1.And(u2)
+	return checkEqualU256(ru, rb)
+}
+
+func (f fuzzU256) AndNot() error {
+	b1, b2 := f.source.BigU256x2()
+	u1, u2 := accU256FromBigInt(b1), accU256FromBigInt(b2)
+	rb := new(big.Int).AndNot(b1, b2)
+	ru := u1.AndNot(u2)
+	return checkEqualU256(ru, rb)
+}
+
+func (f fuzzU256) Or() error {
+	b1, b2 := f.source.BigU256x2()
+	u1, u2 := accU256FromBigInt(b1), accU256FromBigInt(b2)
+	rb := new(big.Int).Or(b1, b2)
+	ru := u1.Or(u2)
+	return checkEqualU256(ru, rb)
+}
+
+func (f fuzzU256) Xor() error {
+	b1, b2 := f.source.BigU256x2()
+	u1, u2 := accU256FromBigInt(b1), accU256FromBigInt(b2)
+	rb := new(big.Int).Xor(b1, b2)
+	ru := u1.Xor(u2)
+	return checkEqualU256(ru, rb)
+}
+
+func (f fuzzU256) Lsh() error {
+	// Not implemented
+	return nil
+}
+
+func (f fuzzU256) Rsh() error {
+	b1, by := f.source.BigU256AndBitSize()
+	u1 := accU256FromBigInt(b1)
+	rb := new(big.Int).Rsh(b1, by)
+	ru := u1.Rsh(by)
+	return checkEqualU256(ru, rb)
+}
+
+func (f fuzzU256) Neg() error {
+	return nil // nothing to do here
+}
+
+func (f fuzzU256) AsFloat64() error {
+	// Not implemented
+	return nil
+}
+
+func (f fuzzU256) FromFloat64() error {
+	// Not implemented
+	return nil
+}
+
+func (f fuzzU256) String() error {
+	b1 := f.source.BigU256()
+	u1 := accU256FromBigInt(b1)
+	return checkEqualString(u1, b1)
+}
+
+func (f fuzzU256) SetBit() error {
+	// Not implemented
+	return nil
+}
+
+func (f fuzzU256) Bit() error {
+	// Not implemented
+	return nil
+}
+
+func (f fuzzU256) Not() error {
+	b1 := f.source.BigU256()
+	u1 := accU256FromBigInt(b1)
+
+	ru := u1.Not()
+	if ru.Equal(u1) {
+		return fmt.Errorf("input unchanged by Not: %v", u1)
+	}
+	rd := ru.Not()
+	if !rd.Equal(u1) {
+		return fmt.Errorf("double-not does not equal input. expected %d, found %d", u1, rd)
+	}
+
+	return nil
+}
+
+func (f fuzzU256) BitLen() error {
+	// Not implemented
+	return nil
+}
+
+// NEWOP: func (f fuzzU256) ...() error {}
+
 type bigGenKind int
 
 const (
@@ -1257,6 +1540,49 @@ const (
 	bigGenSame  bigGenKind = 2
 	bigGenFixed bigGenKind = 3
 )
+
+type bigU256Gen struct {
+	kind  bigGenKind
+	bits  int
+	fixed *big.Int
+}
+
+func (gen bigU256Gen) Value(r *rando) (v *big.Int) {
+	switch gen.kind {
+	case bigGenZero:
+		v = new(big.Int)
+
+	case bigGenBits:
+		v = new(big.Int)
+		if gen.bits <= 0 || gen.bits > 256 {
+			panic("misconfigured bits")
+		} else if gen.bits <= 64 {
+			v = v.Rand(r.rng, maxBigUint64)
+		} else if gen.bits <= 128 {
+			v = v.Rand(r.rng, maxBigU128)
+		} else if gen.bits <= 256 {
+			v = v.Rand(r.rng, maxBigU256)
+		}
+		idx := gen.bits - 1
+		v.And(v, masks256[idx])
+		v.SetBit(v, idx, 1)
+
+	case bigGenSame:
+		oper := r.Operands()
+		v = oper[len(oper)-1]
+
+	case bigGenFixed:
+		v = new(big.Int)
+		v.Set(gen.fixed)
+
+	default:
+		panic("unknown gen kind")
+	}
+
+	r.operands = append(r.operands, v)
+
+	return v
+}
 
 type bigU128Gen struct {
 	kind  bigGenKind
@@ -1279,7 +1605,7 @@ func (gen bigU128Gen) Value(r *rando) (v *big.Int) {
 			v = v.Rand(r.rng, maxBigU128)
 		}
 		idx := gen.bits - 1
-		v.And(v, masks[idx])
+		v.And(v, masks128[idx])
 		v.SetBit(v, idx, 1)
 
 	case bigGenSame:
@@ -1321,7 +1647,7 @@ func (gen bigI128Gen) Value(r *rando) (v *big.Int) {
 			v = v.Rand(r.rng, maxBigU128)
 		}
 		idx := gen.bits - 1
-		v.And(v, masks[idx])
+		v.And(v, masks128[idx])
 		v.SetBit(v, idx, 1)
 		if gen.neg {
 			v.Neg(v)
@@ -1363,6 +1689,15 @@ func (gen bigU128AndBitSizeAndBitValueGen) Values(r *rando) (v *big.Int, shift u
 	return gen.u128.Value(r), gen.shift, gen.value
 }
 
+type bigU256AndBitSizeGen struct {
+	u256  bigU256Gen
+	shift uint // 0 to 256
+}
+
+func (gen bigU256AndBitSizeGen) Values(r *rando) (v *big.Int, shift uint) {
+	return gen.u256.Value(r), gen.shift
+}
+
 // rando provides schemes for argument generation with heuristics that try to
 // ensure coverage of the differences that matter.
 //
@@ -1374,11 +1709,17 @@ type rando struct {
 	bigU128Schemes []bigU128Gen
 	bigU128Cur     int
 
+	bigU256Schemes []bigU256Gen
+	bigU256Cur     int
+
 	bigI128Schemes []bigI128Gen
 	bigI128Cur     int
 
 	bigU128x2Schemes [][2]bigU128Gen
 	bigU128x2Cur     int
+
+	bigU256x2Schemes [][2]bigU256Gen
+	bigU256x2Cur     int
 
 	bigI128x2Schemes [][2]bigI128Gen
 	bigI128x2Cur     int
@@ -1391,6 +1732,9 @@ type rando struct {
 
 	bigU128AndBitSizeSchemes []bigU128AndBitSizeGen
 	bigU128AndBitSizeCur     int
+
+	bigU256AndBitSizeSchemes []bigU256AndBitSizeGen
+	bigU256AndBitSizeCur     int
 
 	bigU128AndBitSizeAndBitValueSchemes []bigU128AndBitSizeAndBitValueGen
 	bigU128AndBitSizeAndBitValueCur     int
@@ -1423,11 +1767,32 @@ func newRando(rng *rand.Rand) *rando {
 		}
 	}
 
+	{ // build bigU256Schemes
+		r.bigU256Schemes = []bigU256Gen{
+			bigU256Gen{kind: bigGenZero},
+			bigU256Gen{kind: bigGenFixed, fixed: maxBigUint64},
+			bigU256Gen{kind: bigGenFixed, fixed: maxBigU128},
+			bigU256Gen{kind: bigGenFixed, fixed: maxBigU256},
+		}
+		for i := 1; i <= 256; i++ {
+			r.bigU256Schemes = append(r.bigU256Schemes, bigU256Gen{kind: bigGenBits, bits: i})
+		}
+	}
+
 	{ // build bigU128AndBitSizeSchemes
 		for _, u := range r.bigU128Schemes {
 			for shift := uint(0); shift < 128; shift++ {
 				r.bigU128AndBitSizeSchemes = append(
 					r.bigU128AndBitSizeSchemes, bigU128AndBitSizeGen{u128: u, shift: shift})
+			}
+		}
+	}
+
+	{ // build bigU256AndBitSizeSchemes
+		for _, u := range r.bigU256Schemes {
+			for shift := uint(0); shift < 256; shift++ {
+				r.bigU256AndBitSizeSchemes = append(
+					r.bigU256AndBitSizeSchemes, bigU256AndBitSizeGen{u256: u, shift: shift})
 			}
 		}
 	}
@@ -1450,6 +1815,17 @@ func newRando(rng *rand.Rand) *rando {
 			}
 			for i := 0; i < samesies; i++ {
 				r.bigU128x2Schemes = append(r.bigU128x2Schemes, [2]bigU128Gen{u1, bigU128Gen{kind: bigGenSame}})
+			}
+		}
+	}
+
+	{ // build bigU256x2Schemes
+		for _, u1 := range r.bigU256Schemes {
+			for _, u2 := range r.bigU256Schemes {
+				r.bigU256x2Schemes = append(r.bigU256x2Schemes, [2]bigU256Gen{u1, u2})
+			}
+			for i := 0; i < samesies; i++ {
+				r.bigU256x2Schemes = append(r.bigU256x2Schemes, [2]bigU256Gen{u1, bigU256Gen{kind: bigGenSame}})
 			}
 		}
 	}
@@ -1527,12 +1903,18 @@ func newRando(rng *rand.Rand) *rando {
 func (r *rando) Operands() []*big.Int { return r.operands }
 
 func (r *rando) NextOp(op fuzzOp, configuredIterations int) (opIterations int) {
-	r.bigU128x2Cur = 0
 	r.bigU128Cur = 0
-	r.bigI128x2Cur = 0
+	r.bigU128x2Cur = 0
+	r.bigU256Cur = 0
+	r.bigU256x2Cur = 0
 	r.bigI128Cur = 0
+	r.bigI128x2Cur = 0
+	r.bigU128And64Cur = 0
+	r.bigI128And64Cur = 0
 	r.bigU128AndBitSizeCur = 0
+	r.bigU256AndBitSizeCur = 0
 	r.bigU128AndBitSizeAndBitValueCur = 0
+
 	return configuredIterations
 }
 
@@ -1551,6 +1933,36 @@ func (r *rando) ensureOnePerTest() {
 	r.testHasRun = true
 }
 
+func (r *rando) BigU128() *big.Int {
+	r.ensureOnePerTest()
+	scheme := r.bigU128Schemes[r.bigU128Cur]
+	r.bigU128Cur++
+	if r.bigU128Cur >= len(r.bigU128Schemes) {
+		r.bigU128Cur = 0
+	}
+	return scheme.Value(r)
+}
+
+func (r *rando) BigU256() *big.Int {
+	r.ensureOnePerTest()
+	scheme := r.bigU256Schemes[r.bigU256Cur]
+	r.bigU256Cur++
+	if r.bigU256Cur >= len(r.bigU256Schemes) {
+		r.bigU256Cur = 0
+	}
+	return scheme.Value(r)
+}
+
+func (r *rando) BigI128() *big.Int {
+	r.ensureOnePerTest()
+	scheme := r.bigI128Schemes[r.bigI128Cur]
+	r.bigI128Cur++
+	if r.bigI128Cur >= len(r.bigI128Schemes) {
+		r.bigI128Cur = 0
+	}
+	return scheme.Value(r)
+}
+
 func (r *rando) BigU128x2() (b1, b2 *big.Int) {
 	r.ensureOnePerTest()
 
@@ -1558,6 +1970,17 @@ func (r *rando) BigU128x2() (b1, b2 *big.Int) {
 	r.bigU128x2Cur++
 	if r.bigU128x2Cur >= len(r.bigU128x2Schemes) {
 		r.bigU128x2Cur = 0
+	}
+	return schemes[0].Value(r), schemes[1].Value(r)
+}
+
+func (r *rando) BigU256x2() (b1, b2 *big.Int) {
+	r.ensureOnePerTest()
+
+	schemes := r.bigU256x2Schemes[r.bigU256x2Cur]
+	r.bigU256x2Cur++
+	if r.bigU256x2Cur >= len(r.bigU256x2Schemes) {
+		r.bigU256x2Cur = 0
 	}
 	return schemes[0].Value(r), schemes[1].Value(r)
 }
@@ -1606,6 +2029,17 @@ func (r *rando) BigU128AndBitSize() (*big.Int, uint) {
 	return scheme.Values(r)
 }
 
+func (r *rando) BigU256AndBitSize() (*big.Int, uint) {
+	r.ensureOnePerTest()
+
+	scheme := r.bigU256AndBitSizeSchemes[r.bigU256AndBitSizeCur]
+	r.bigU256AndBitSizeCur++
+	if r.bigU256AndBitSizeCur >= len(r.bigU256AndBitSizeSchemes) {
+		r.bigU256AndBitSizeCur = 0
+	}
+	return scheme.Values(r)
+}
+
 func (r *rando) BigU128AndBitSizeAndBitValue() (*big.Int, uint, bool) {
 	r.ensureOnePerTest()
 
@@ -1617,30 +2051,10 @@ func (r *rando) BigU128AndBitSizeAndBitValue() (*big.Int, uint, bool) {
 	return scheme.Values(r)
 }
 
-func (r *rando) BigI128() *big.Int {
-	r.ensureOnePerTest()
-	scheme := r.bigI128Schemes[r.bigI128Cur]
-	r.bigI128Cur++
-	if r.bigI128Cur >= len(r.bigI128Schemes) {
-		r.bigI128Cur = 0
-	}
-	return scheme.Value(r)
-}
-
-func (r *rando) BigU128() *big.Int {
-	r.ensureOnePerTest()
-	scheme := r.bigU128Schemes[r.bigU128Cur]
-	r.bigU128Cur++
-	if r.bigU128Cur >= len(r.bigU128Schemes) {
-		r.bigU128Cur = 0
-	}
-	return scheme.Value(r)
-}
-
-// masks contains a pre-calculated set of 128-bit masks for use when generating
+// masks128 contains a pre-calculated set of 128-bit masks for use when generating
 // random U128s/I128s. It's used to ensure we generate an even distribution of
 // bit sizes.
-var masks [128]*big.Int
+var masks128 [128]*big.Int
 
 func init() {
 	for i := 0; i < 128; i++ {
@@ -1648,6 +2062,21 @@ func init() {
 		for b := 0; b <= i; b++ {
 			bi.SetBit(bi, b, 1)
 		}
-		masks[i] = bi
+		masks128[i] = bi
+	}
+}
+
+// masks256 contains a pre-calculated set of 256-bit masks for use when generating
+// random U256s/I256s. It's used to ensure we generate an even distribution of
+// bit sizes.
+var masks256 [256]*big.Int
+
+func init() {
+	for i := 0; i < 256; i++ {
+		bi := new(big.Int)
+		for b := 0; b <= i; b++ {
+			bi.SetBit(bi, b, 1)
+		}
+		masks256[i] = bi
 	}
 }

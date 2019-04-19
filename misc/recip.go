@@ -3,11 +3,11 @@ package main
 import (
 	"fmt"
 	"log"
-	"math/big"
 	"math/bits"
 	"os"
 	"strconv"
 
+	"github.com/davecgh/go-spew/spew"
 	num "github.com/shabbyrobe/go-num"
 )
 
@@ -17,10 +17,6 @@ import (
 // end up helping much. The routine I was trying to use it for is pasted down
 // the bottom, along with the benchmark code that showed me I had wasted my
 // time.
-//
-// It contains the first half of an unpolished, untested U256 implementation,
-// which could be spun into an implementation in the library proper at some
-// point.
 //
 // It has been kept with the repository just in case it comes in handy, but I
 // wouldn't recommend using it for anything serious.
@@ -41,10 +37,10 @@ func run() error {
 		return fmt.Errorf("missing args")
 	}
 
-	bitv := os.Args[1]
+	numType := os.Args[1]
 	numerStr, denomStr := os.Args[2], os.Args[3]
 
-	if bitv == "64" {
+	if numType == "u64" {
 		numer, err := strconv.ParseUint(numerStr, 10, 64)
 		if err != nil {
 			return err
@@ -61,7 +57,7 @@ func run() error {
 		fmt.Printf("%d / %d == %d\n", numer, denom, result)
 		fmt.Printf("recip:%#x shift:%d 65bit:%v\n", recip, shift, add)
 
-	} else if bitv == "128" {
+	} else if numType == "u128" {
 		numer, _, err := num.U128FromString(numerStr)
 		if err != nil {
 			return err
@@ -81,51 +77,31 @@ func run() error {
 		nhi, nlo := recip.Raw()
 		fmt.Printf("recip: U128{hi: %#x, lo: %#x}\n", nhi, nlo)
 
+	} else if numType == "i128" {
+		numer, _, err := num.I128FromString(numerStr)
+		if err != nil {
+			return err
+		}
+
+		denom, _, err := num.I128FromString(denomStr)
+		if err != nil {
+			return err
+		}
+
+		divider := divFindMulI128(denom)
+		result := divMulI128(numer, divider)
+
+		fmt.Printf("%d / %d == %d\n", numer, denom, result)
+		fmt.Printf("recip:%#x shift:%d 65bit:%v\n", divider.magic, divider.more, divider.add)
+
+		nhi, nlo := divider.magic.Raw()
+		fmt.Printf("recip: I128{hi: %#x, lo: %#x}\n", nhi, nlo)
+
 	} else {
-		return fmt.Errorf("bits must be 64 or 128")
+		return fmt.Errorf("numtype must be u64, u128, i128")
 	}
 
 	return nil
-}
-
-func divFindMulU128(denom num.U128) (recip num.U128, shift uint, add bool) {
-	var floorLog2d = uint(127 - denom.LeadingZeros())
-	var proposedM, rem = U256From64(1).
-		Lsh(floorLog2d).
-		Lsh(128). // move into the hi 128 bits of a 256-bit number
-		QuoRem(U256From128(denom))
-
-	if rem.Cmp(U256From64(0)) <= 0 {
-		panic(fmt.Errorf("remainder should not be less than 0, found %s", rem))
-	}
-	if rem.Cmp(U256From128(denom)) >= 0 {
-		panic("unexpected rem")
-	}
-
-	if !proposedM.IsU128() {
-		panic(fmt.Errorf("proposedM overflows 128 bit, found %s (%x)", proposedM, proposedM))
-	}
-	if !rem.IsU128() {
-		panic(fmt.Errorf("remainder overflows 128 bit, found %s", rem))
-	}
-	var proposedM128, rem128 = proposedM.AsU128(), rem.AsU128()
-
-	var e = denom.Sub(rem128)
-	if e.LessThan(num.U128From64(1).Lsh(floorLog2d)) {
-		shift = floorLog2d
-	} else {
-		// 0.65 bit version:
-		proposedM128 = proposedM128.Add(proposedM128)
-		twiceRem := rem128.Add(rem128)
-		if twiceRem.GreaterOrEqualTo(denom) || twiceRem.LessThan(rem128) {
-			proposedM128.Add(num.U128From64(1))
-		}
-		shift = floorLog2d
-		add = true
-	}
-
-	recip = proposedM128.Add(num.U128From64(1))
-	return
 }
 
 func divFindMulU64(denom uint64) (recip uint64, shift uint, add bool) {
@@ -161,6 +137,202 @@ func divFindMulU64(denom uint64) (recip uint64, shift uint, add bool) {
 	return
 }
 
+func divFindMulU128(denom num.U128) (recip num.U128, shift uint, add bool) {
+	var floorLog2Denom = uint(127 - denom.LeadingZeros())
+
+	if denom.And(denom.Sub64(1)).IsZero() {
+		add = true
+		shift = floorLog2Denom - 1
+
+	} else {
+		var proposedM, rem = num.U256From64(1).
+			Lsh(floorLog2Denom).
+			Lsh(128). // move into the hi 128 bits of a 256-bit number
+			QuoRem(num.U256From128(denom))
+
+		if rem.Cmp(num.U256From64(0)) <= 0 {
+			panic(fmt.Errorf("remainder should not be less than 0, found %s", rem))
+		}
+		if rem.Cmp(num.U256From128(denom)) >= 0 {
+			panic("unexpected rem")
+		}
+
+		if !proposedM.IsU128() {
+			panic(fmt.Errorf("proposedM overflows 128 bit, found %s (%x)", proposedM, proposedM))
+		}
+		if !rem.IsU128() {
+			panic(fmt.Errorf("remainder overflows 128 bit, found %s", rem))
+		}
+		var proposedM128, rem128 = proposedM.AsU128(), rem.AsU128()
+
+		var e = denom.Sub(rem128)
+		if e.LessThan(num.U128From64(1).Lsh(floorLog2Denom)) {
+			shift = floorLog2Denom
+		} else {
+			// 0.65 bit version:
+			proposedM128 = proposedM128.Add(proposedM128)
+			twiceRem := rem128.Add(rem128)
+			if twiceRem.GreaterOrEqualTo(denom) || twiceRem.LessThan(rem128) {
+				proposedM128.Add(num.U128From64(1))
+			}
+			shift = floorLog2Denom
+			add = true
+		}
+
+		recip = proposedM128.Add(num.U128From64(1))
+	}
+
+	return
+}
+
+type i128Divider struct {
+	magic num.I128
+	more  uint
+	add   bool
+	neg   bool
+}
+
+func divMulI128(numer num.I128, denom i128Divider) num.I128 {
+	// q, _ := mul128to256(numer, recip)
+
+	// if add {
+	//     return numer.Sub(q).Rsh(1).Add(q).Rsh(shift)
+	// } else {
+	//     return q.Rsh(shift)
+	// }
+
+	unumer := numer.AsU128()
+	absNumer := numer.AbsU128()
+
+	spew.Dump(denom)
+
+	if denom.magic.IsZero() {
+		mask := num.U128From64(1).Lsh(denom.more).Sub64(1)
+		uq := unumer.Add(unumer.Rsh(127).And(mask)).Rsh(denom.more)
+		q := uq.AsI128()
+		if denom.neg {
+			q = q.Neg()
+		}
+		return q
+
+	} else {
+		uq, _ := mul128to256(absNumer, denom.magic.AsU128())
+		if denom.add {
+			fmt.Println(1, uq)
+			uq = uq.Add(unumer.Xor64(1).Sub64(1))
+			fmt.Println(2, uq)
+		}
+		uq = uq.Rsh(denom.more)
+		q := uq.AsI128()
+		if q.Sign() < 0 {
+			q = q.Add64(1)
+		}
+		return q
+
+		// uint32_t uq = (uint32_t)libdivide__mullhi_s32(denom->magic, numer);
+		// if (more & LIBDIVIDE_ADD_MARKER) {
+		//     // must be arithmetic shift and then sign extend
+		//     int32_t sign = (int8_t)more >> 7;
+		//     // q += (more < 0 ? -numer : numer), casts to avoid UB
+		//     uq += ((uint32_t)numer ^ sign) - sign;
+		// }
+		// int32_t q = (int32_t)uq;
+		// q >>= more & LIBDIVIDE_32_SHIFT_MASK;
+		// q += (q < 0);
+		// return q;
+	}
+	/*
+			  uint8_t more = denom->more;
+		      if (more & LIBDIVIDE_S32_SHIFT_PATH) {
+		          uint32_t sign = (int8_t)more >> 7;
+		          uint8_t shifter = more & LIBDIVIDE_32_SHIFT_MASK;
+		          uint32_t uq = (uint32_t)(numer + ((numer >> 31) & ((1U << shifter) - 1)));
+		          int32_t q = (int32_t)uq;
+		          q = q >> shifter;
+		          q = (q ^ sign) - sign;
+		          return q;
+		      } else {
+		          uint32_t uq = (uint32_t)libdivide__mullhi_s32(denom->magic, numer);
+		          if (more & LIBDIVIDE_ADD_MARKER) {
+		              // must be arithmetic shift and then sign extend
+		              int32_t sign = (int8_t)more >> 7;
+		              // q += (more < 0 ? -numer : numer), casts to avoid UB
+		              uq += ((uint32_t)numer ^ sign) - sign;
+		          }
+		          int32_t q = (int32_t)uq;
+		          q >>= more & LIBDIVIDE_32_SHIFT_MASK;
+		          q += (q < 0);
+		          return q;
+		      }
+	*/
+}
+
+func divFindMulI128(denom num.I128) (divider i128Divider) {
+	absDenom := denom.Abs().AsU128()
+	floorLog2Denom := uint(127 - absDenom.LeadingZeros())
+
+	if absDenom.And(absDenom.Sub64(1)).IsZero() {
+		divider.neg = denom.Sign() < 0
+		divider.more = floorLog2Denom
+
+	} else {
+		if floorLog2Denom < 1 {
+			panic("unexpected more")
+		}
+
+		var proposedM, rem = num.U256From64(1).
+			Lsh(floorLog2Denom - 1).
+			Lsh(128). // move into the hi 128 bits of a 256-bit number
+			QuoRem(num.U256From128(absDenom))
+
+		if rem.Cmp(num.U256From64(0)) <= 0 {
+			panic(fmt.Errorf("remainder should not be less than 0, found %s", rem))
+		}
+		if rem.Cmp(num.U256From128(absDenom)) >= 0 {
+			panic("unexpected rem")
+		}
+
+		if !proposedM.IsU128() {
+			panic(fmt.Errorf("proposedM overflows 128 bit, found %s (%x)", proposedM, proposedM))
+		}
+		if !rem.IsU128() {
+			panic(fmt.Errorf("remainder overflows 128 bit, found %s", rem))
+		}
+		var proposedM128, rem128 = proposedM.AsU128(), rem.AsU128()
+
+		var e = absDenom.Sub(rem128)
+
+		// We are going to start with a power of floor_log_2_d - 1.
+		// This works if works if e < 2**floor_log_2_d.
+		if e.LessThan(num.U128From64(1).Lsh(floorLog2Denom)) {
+			divider.more = floorLog2Denom - 1
+
+		} else {
+			// We need to go one higher. This should not make proposed_m
+			// overflow, but it will make it negative when interpreted as an
+			// int32_t.
+			// 0.65 bit version:
+			proposedM128 = proposedM128.Add(proposedM128)
+			twiceRem := rem128.Add(rem128)
+
+			if twiceRem.GreaterOrEqualTo(absDenom) || twiceRem.LessThan(rem128) {
+				proposedM128.Add(num.U128From64(1))
+			}
+			divider.more = floorLog2Denom
+			divider.add = true
+		}
+
+		divider.magic = proposedM128.Add(num.U128From64(1)).AsI128()
+
+		if denom.Sign() < 0 {
+			divider.neg = true
+			divider.magic = divider.magic.Neg()
+		}
+	}
+
+	return
+}
+
 func divMulU128(numer, recip num.U128, shift uint, add bool) num.U128 {
 	q, _ := mul128to256(numer, recip)
 
@@ -183,302 +355,6 @@ func divMulU64(numer, recip uint64, shift uint, add bool) uint64 {
 	} else {
 		return q >> shift
 	}
-}
-
-type U256 struct {
-	hi, hm, lm, lo uint64
-}
-
-func U256From128(in num.U128) U256 {
-	hi, lo := in.Raw()
-	return U256{lm: hi, lo: lo}
-}
-
-func U256From64(in uint64) U256 {
-	return U256{lo: in}
-}
-
-func (u U256) And(v U256) (out U256) {
-	out.hi = u.hi & v.hi
-	out.hm = u.hm & v.hm
-	out.lm = u.lm & v.lm
-	out.lo = u.lo & v.lo
-	return out
-}
-
-func (u U256) IntoBigInt(b *big.Int) {
-	const intSize = 32 << (^uint(0) >> 63)
-
-	switch intSize {
-	case 64:
-		bits := b.Bits()
-		ln := len(bits)
-		if len(bits) < 4 {
-			bits = append(bits, make([]big.Word, 4-ln)...)
-		}
-		bits = bits[:4]
-		bits[0] = big.Word(u.lo)
-		bits[1] = big.Word(u.lm)
-		bits[2] = big.Word(u.hm)
-		bits[3] = big.Word(u.hi)
-		b.SetBits(bits)
-
-	default:
-		panic("not implemented")
-	}
-}
-
-func (u U256) AsBigInt() (b *big.Int) {
-	var v big.Int
-	u.IntoBigInt(&v)
-	return &v
-}
-
-func (u U256) Cmp(n U256) int {
-	if u.hi > n.hi {
-		return 1
-	} else if u.hi < n.hi {
-		return -1
-	} else if u.hm > n.hm {
-		return 1
-	} else if u.hm < n.hm {
-		return -1
-	} else if u.lm > n.lm {
-		return 1
-	} else if u.lm < n.lm {
-		return -1
-	} else if u.lo > n.lo {
-		return 1
-	} else if u.lo < n.lo {
-		return -1
-	}
-	return 0
-}
-
-func (u U256) Dec() (out U256) {
-	out = u
-	out.lo = u.lo - 1
-	if u.lo < out.lo {
-		out.lm--
-	}
-	if u.lm < out.lm {
-		out.hm--
-	}
-	if u.hm < out.hm {
-		out.hi--
-	}
-	return out
-}
-
-func (u U256) Format(s fmt.State, c rune) {
-	// FIXME: This is good enough for now, but not forever.
-	u.AsBigInt().Format(s, c)
-}
-
-func (u U256) LeadingZeros() uint {
-	if u.hi != 0 {
-		return uint(bits.LeadingZeros64(u.hi))
-	} else if u.hm != 0 {
-		return uint(bits.LeadingZeros64(u.hm)) + 64
-	} else if u.lm != 0 {
-		return uint(bits.LeadingZeros64(u.lm)) + 128
-	} else if u.lo != 0 {
-		return uint(bits.LeadingZeros64(u.lo)) + 192
-	}
-	return 256
-}
-
-func (u U256) Lsh(n uint) (v U256) {
-	if n == 0 {
-		return u
-
-	} else if n < 64 {
-		return U256{
-			hi: (u.hi << n) | (u.hm >> (64 - n)),
-			hm: (u.hm << n) | (u.lm >> (64 - n)),
-			lm: (u.lm << n) | (u.lo >> (64 - n)),
-			lo: u.lo << n,
-		}
-
-	} else if n == 64 {
-		return U256{hi: u.hm, hm: u.lm, lm: u.lo}
-
-	} else if n < 128 {
-		n -= 64
-		return U256{
-			hi: (u.hm << n) | (u.lm >> (64 - n)),
-			hm: (u.lm << n) | (u.lo >> (64 - n)),
-			lm: u.lo << n,
-		}
-
-	} else if n == 128 {
-		return U256{hi: u.lm, hm: u.lo}
-
-	} else if n < 192 {
-		n -= 128
-		return U256{
-			hi: (u.lm << n) | (u.lo >> (64 - n)),
-			hm: u.lo << n,
-		}
-
-	} else if n == 192 {
-		return U256{hi: u.lo}
-	} else if n < 256 {
-		return U256{hi: u.lo << (n - 192)}
-	} else {
-		return U256{}
-	}
-}
-
-func (u U256) QuoRem(by U256) (q, r U256) {
-	if by.hi == 0 && by.hm == 0 && by.lm == 0 && by.lo == 0 {
-		panic("u256: division by zero")
-	}
-
-	byLeading0 := by.LeadingZeros()
-	if byLeading0 == 255 {
-		return u, r
-	}
-
-	byTrailing0 := by.TrailingZeros()
-	if (byLeading0 + byTrailing0) == 255 {
-		q = u.Rsh(byTrailing0)
-		by = by.Dec()
-		r = by.And(u)
-		return
-	}
-
-	if cmp := u.Cmp(by); cmp < 0 {
-		return q, u // it's 100% remainder
-
-	} else if cmp == 0 {
-		q.lo = 1 // dividend and divisor are the same
-		return q, r
-	}
-
-	uLeading0 := u.LeadingZeros()
-	return quorem256bin(u, by, uLeading0, byLeading0)
-}
-
-func (u U256) Rsh(n uint) (v U256) {
-	if n == 0 {
-		return u
-
-	} else if n < 64 {
-		return U256{
-			hi: u.hi >> n,
-			hm: (u.hm >> n) | (u.hi << (64 - n)),
-			lm: (u.lm >> n) | (u.hm << (64 - n)),
-			lo: (u.lo >> n) | (u.lm << (64 - n)),
-		}
-
-	} else if n == 64 {
-		return U256{hm: u.hi, lm: u.hm, lo: u.lm}
-
-	} else if n < 128 {
-		n -= 64
-		return U256{
-			hm: u.hi >> n,
-			lm: (u.hm >> n) | (u.hi << (64 - n)),
-			lo: (u.lm >> n) | (u.hm << (64 - n)),
-		}
-
-	} else if n == 128 {
-		return U256{lm: u.hi, lo: u.hm}
-
-	} else if n < 192 {
-		n -= 128
-		return U256{
-			lm: u.hi >> n,
-			lo: (u.hm >> n) | (u.hi << (64 - n)),
-		}
-
-	} else if n == 192 {
-		return U256{lo: u.hi}
-
-	} else if n < 256 {
-		return U256{lo: u.hi >> (n - 192)}
-
-	} else {
-		return U256{}
-	}
-}
-
-func (u U256) String() string {
-	var zeroU256 U256
-	if u == zeroU256 {
-		return "0"
-	}
-	if u.hi == 0 && u.hm == 0 && u.lm == 0 {
-		return strconv.FormatUint(u.lo, 10)
-	}
-	v := u.AsBigInt()
-	return v.String()
-}
-
-func (u U256) Sub(n U256) (v U256) {
-	v.lo = u.lo - n.lo
-	if u.lo < v.lo {
-		u.lm--
-	}
-	v.lm = u.lm - n.lm
-	if u.lm < v.lm {
-		u.hm--
-	}
-	v.hm = u.hm - n.hm
-	if u.hm < v.hm {
-		u.hi--
-	}
-	v.hi = u.hi - n.hi
-	return v
-}
-
-func (u U256) TrailingZeros() uint {
-	if u.lo != 0 {
-		return uint(bits.TrailingZeros64(u.lo))
-	} else if u.lm != 0 {
-		return uint(bits.LeadingZeros64(u.lm)) + 64
-	} else if u.hm != 0 {
-		return uint(bits.LeadingZeros64(u.hm)) + 128
-	} else if u.hi != 0 {
-		return uint(bits.LeadingZeros64(u.hi)) + 192
-	}
-	return 256
-}
-
-// IsUint64 truncates the U256 to fit in a uint64. Values outside the range
-// will over/underflow. See IsUint64() if you want to check before you convert.
-func (u U256) AsUint64() uint64 { return u.lo }
-
-// IsUint64 reports whether u can be represented as a uint64.
-func (u U256) IsUint64() bool { return u.hi == 0 && u.hm == 0 && u.lm == 0 }
-
-func (u U256) AsU128() num.U128 { return num.U128FromRaw(u.lm, u.lo) }
-
-func (u U256) IsU128() bool { return u.hi == 0 && u.hm == 0 }
-
-func quorem256bin(u, by U256, uLeading0, byLeading0 uint) (q, r U256) {
-	shift := int(byLeading0 - uLeading0)
-	by = by.Lsh(uint(shift))
-
-	for {
-		q = q.Lsh(1)
-
-		if u.Cmp(by) >= 0 {
-			u = u.Sub(by)
-			q.lo |= 1
-		}
-
-		by = by.Rsh(1)
-
-		if shift <= 0 {
-			break
-		}
-		shift--
-	}
-
-	r = u
-	return q, r
 }
 
 func mul128to256(n, by num.U128) (hi, lo num.U128) {
