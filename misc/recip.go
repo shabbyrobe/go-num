@@ -95,14 +95,18 @@ func divFindMulU128(denom num.U128) (recip num.U128, shift uint, add bool) {
 		Lsh(128). // move into the hi 128 bits of a 256-bit number
 		QuoRem(U256From128(denom))
 
-	if rem.Cmp(U256From64(0)) <= 0 || rem.Cmp(U256From128(denom)) >= 0 {
+	if rem.Cmp(U256From64(0)) <= 0 {
+		panic(fmt.Errorf("remainder should not be less than 0, found %s", rem))
+	}
+	if rem.Cmp(U256From128(denom)) >= 0 {
 		panic("unexpected rem")
 	}
+
 	if !proposedM.IsU128() {
-		panic("proposedM overflows 128 bit")
+		panic(fmt.Errorf("proposedM overflows 128 bit, found %s (%x)", proposedM, proposedM))
 	}
 	if !rem.IsU128() {
-		panic("remainder overflows 128 bit")
+		panic(fmt.Errorf("remainder overflows 128 bit, found %s", rem))
 	}
 	var proposedM128, rem128 = proposedM.AsU128(), rem.AsU128()
 
