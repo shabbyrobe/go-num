@@ -337,6 +337,21 @@ func (i I128) IsInt64() bool {
 	}
 }
 
+// MustInt64 converts i to a signed 64-bit integer if the conversion would succeed, and
+// panics if it would not.
+func (i I128) MustInt64() int64 {
+	if i.hi&signBit != 0 {
+		if i.hi == maxUint64 && i.lo >= 0x8000000000000000 {
+			return -int64(^(i.lo - 1))
+		}
+	} else {
+		if i.hi == 0 && i.lo <= maxInt64 {
+			return int64(i.lo)
+		}
+	}
+	panic(fmt.Errorf("I128 %v is not representable as an int64", i))
+}
+
 func (i I128) Sign() int {
 	if i == zeroI128 {
 		return 0

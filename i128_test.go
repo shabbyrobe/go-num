@@ -471,6 +471,34 @@ func TestI128Mul(t *testing.T) {
 	}
 }
 
+func TestI128MustInt64(t *testing.T) {
+	for _, tc := range []struct {
+		a  I128
+		ok bool
+	}{
+		{i64(0), true},
+		{i64(1), true},
+		{i64(maxInt64), true},
+		{i128s("9223372036854775808"), false},
+		{MaxI128, false},
+
+		{i64(-1), true},
+		{i64(minInt64), true},
+		{i128s("-9223372036854775809"), false},
+		{MinI128, false},
+	} {
+		t.Run(fmt.Sprintf("(%s).64?==%v", tc.a, tc.ok), func(t *testing.T) {
+			tt := assert.WrapTB(t)
+			defer func() {
+				tt.Helper()
+				tt.MustAssert((recover() == nil) == tc.ok)
+			}()
+
+			tt.MustEqual(tc.a, I128From64(tc.a.MustInt64()))
+		})
+	}
+}
+
 func TestI128Neg(t *testing.T) {
 	for idx, tc := range []struct {
 		a, b I128
