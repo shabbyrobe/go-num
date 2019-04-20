@@ -763,6 +763,17 @@ func BenchmarkI128FromCast(b *testing.B) {
 	})
 }
 
+func BenchmarkI128FromFloat(b *testing.B) {
+	for _, pow := range []float64{1, 63, 64, 65, 127, 128} {
+		b.Run(fmt.Sprintf("pow%d", int(pow)), func(b *testing.B) {
+			f := math.Pow(2, pow)
+			for i := 0; i < b.N; i++ {
+				BenchI128Result, _ = I128FromFloat64(f)
+			}
+		})
+	}
+}
+
 func BenchmarkI128LessThan(b *testing.B) {
 	for _, iv := range []struct {
 		a, b I128
@@ -773,10 +784,33 @@ func BenchmarkI128LessThan(b *testing.B) {
 		{i64(-1), i64(-1)},
 		{i64(-1), i64(-2)},
 		{i64(-2), i64(-1)},
+		{MaxI128, MinI128},
+		{MinI128, MaxI128},
 	} {
 		b.Run(fmt.Sprintf("%s<%s", iv.a, iv.b), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				BenchBoolResult = iv.a.LessThan(iv.b)
+			}
+		})
+	}
+}
+
+func BenchmarkI128LessOrEqualTo(b *testing.B) {
+	for _, iv := range []struct {
+		a, b I128
+	}{
+		{i64(1), i64(1)},
+		{i64(2), i64(1)},
+		{i64(1), i64(2)},
+		{i64(-1), i64(-1)},
+		{i64(-1), i64(-2)},
+		{i64(-2), i64(-1)},
+		{MaxI128, MinI128},
+		{MinI128, MaxI128},
+	} {
+		b.Run(fmt.Sprintf("%s<%s", iv.a, iv.b), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				BenchBoolResult = iv.a.LessOrEqualTo(iv.b)
 			}
 		})
 	}
