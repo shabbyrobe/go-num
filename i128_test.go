@@ -674,6 +674,23 @@ func BenchmarkI128FromCast(b *testing.B) {
 	})
 }
 
+func BenchmarkI128IsZero(b *testing.B) {
+	for idx, tc := range []struct {
+		name string
+		v    I128
+	}{
+		{"0", zeroI128},
+		{"hizero", i64(1)},
+		{"nozero", MaxI128},
+	} {
+		b.Run(fmt.Sprintf("%d/%s", idx, tc.name), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				BenchBoolResult = tc.v.IsZero()
+			}
+		})
+	}
+}
+
 func BenchmarkI128LessThan(b *testing.B) {
 	for _, iv := range []struct {
 		a, b I128

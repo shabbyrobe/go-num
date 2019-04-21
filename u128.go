@@ -176,7 +176,7 @@ func RandU128(source RandSource) (out U128) {
 	return U128{hi: source.Uint64(), lo: source.Uint64()}
 }
 
-func (u U128) IsZero() bool { return u == zeroU128 }
+func (u U128) IsZero() bool { return u.lo == 0 && u.hi == 0 }
 
 // Raw returns access to the U128 as a pair of uint64s. See U128FromRaw() for
 // the counterpart.
@@ -184,7 +184,7 @@ func (u U128) Raw() (hi, lo uint64) { return u.hi, u.lo }
 
 func (u U128) String() string {
 	// FIXME: This is good enough for now, but not forever.
-	if u == zeroU128 {
+	if u.lo == 0 && u.hi == 0 {
 		return "0"
 	}
 	if u.hi == 0 {

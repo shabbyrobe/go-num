@@ -1140,8 +1140,8 @@ func (f fuzzI128) FromFloat64() error {
 	if isZero {
 		return checkEqualI128(r1, b1)
 	} else {
-		diffFLoat := new(big.Float).Quo(diff.AsBigFloat(), bf1)
-		if diffFLoat.Cmp(floatDiffLimit) > 0 {
+		diffFloat := new(big.Float).Quo(diff.AsBigFloat(), bf1)
+		if diffFloat.Cmp(floatDiffLimit) > 0 {
 			return fmt.Errorf("|128(%s) - big(%s)| = %s, > %s", r1, b1,
 				cleanFloatStr(fmt.Sprintf("%s", diff)),
 				cleanFloatStr(fmt.Sprintf("%.20f", floatDiffLimit)))

@@ -214,7 +214,7 @@ func RandI128(source RandSource) (out I128) {
 	return I128{hi: source.Uint64() & maxInt64, lo: source.Uint64()}
 }
 
-func (i I128) IsZero() bool { return i == zeroI128 }
+func (i I128) IsZero() bool { return i.lo == 0 && i.hi == 0 }
 
 // Raw returns access to the I128 as a pair of uint64s. See I128FromRaw() for
 // the counterpart.
