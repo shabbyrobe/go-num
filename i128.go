@@ -350,6 +350,34 @@ func (i I128) MustInt64() int64 {
 	panic(fmt.Errorf("I128 %v is not representable as an int64", i))
 }
 
+// AsUint64 truncates the I128 to fit in a uint64. Values outside the range will
+// over/underflow. Signedness is discarded, as with the following conversion:
+//
+//	var i int64 = -3
+//	var u = uint32(i)
+//	fmt.Printf("%x", u)
+//	// fffffffd
+//
+// See IsUint64() if you want to check before you convert.
+func (i I128) AsUint64() uint64 {
+	return i.lo
+}
+
+// AsUint64 truncates the I128 to fit in a uint64. Values outside the range will
+// over/underflow. See IsUint64() if you want to check before you convert.
+func (i I128) IsUint64() bool {
+	return i.hi == 0
+}
+
+// MustUint64 converts i to an unsigned 64-bit integer if the conversion would succeed,
+// and panics if it would not.
+func (i I128) MustUint64() uint64 {
+	if i.hi != 0 {
+		panic(fmt.Errorf("I128 %v is not representable as a uint64", i))
+	}
+	return i.lo
+}
+
 func (i I128) Sign() int {
 	if i == zeroI128 {
 		return 0
