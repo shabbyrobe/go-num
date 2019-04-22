@@ -24,43 +24,47 @@ const fuzzDefaultIterations = 20000
 // If you add a new op, search for the string 'NEWOP' in this file for all the
 // places you need to update.
 const (
-	fuzzAbs              fuzzOp = "abs"
-	fuzzAdd              fuzzOp = "add"
-	fuzzAdd64            fuzzOp = "add64"
-	fuzzAnd              fuzzOp = "and"
-	fuzzAndNot           fuzzOp = "andnot"
-	fuzzAsFloat64        fuzzOp = "asfloat64"
-	fuzzBit              fuzzOp = "bit"
-	fuzzBitLen           fuzzOp = "bitlen"
-	fuzzCmp              fuzzOp = "cmp"
-	fuzzCmp64            fuzzOp = "cmp64"
-	fuzzDec              fuzzOp = "dec"
-	fuzzEqual            fuzzOp = "equal"
-	fuzzEqual64          fuzzOp = "equal64"
-	fuzzFromFloat64      fuzzOp = "fromfloat64"
-	fuzzGreaterOrEqualTo fuzzOp = "gte"
-	fuzzGreaterThan      fuzzOp = "gt"
-	fuzzInc              fuzzOp = "inc"
-	fuzzLessOrEqualTo    fuzzOp = "lte"
-	fuzzLessThan         fuzzOp = "lt"
-	fuzzLsh              fuzzOp = "lsh"
-	fuzzMul              fuzzOp = "mul"
-	fuzzMul64            fuzzOp = "mul64"
-	fuzzNeg              fuzzOp = "neg"
-	fuzzNot              fuzzOp = "not"
-	fuzzOr               fuzzOp = "or"
-	fuzzQuo              fuzzOp = "quo"
-	fuzzQuo64            fuzzOp = "quo64"
-	fuzzQuoRem           fuzzOp = "quorem"
-	fuzzQuoRem64         fuzzOp = "quorem64"
-	fuzzRem              fuzzOp = "rem"
-	fuzzRem64            fuzzOp = "rem64"
-	fuzzRsh              fuzzOp = "rsh"
-	fuzzString           fuzzOp = "string"
-	fuzzSetBit           fuzzOp = "setbit"
-	fuzzSub              fuzzOp = "sub"
-	fuzzSub64            fuzzOp = "sub64"
-	fuzzXor              fuzzOp = "xor"
+	fuzzAbs                fuzzOp = "abs"
+	fuzzAdd                fuzzOp = "add"
+	fuzzAdd64              fuzzOp = "add64"
+	fuzzAnd                fuzzOp = "and"
+	fuzzAndNot             fuzzOp = "andnot"
+	fuzzAsFloat64          fuzzOp = "asfloat64"
+	fuzzBit                fuzzOp = "bit"
+	fuzzBitLen             fuzzOp = "bitlen"
+	fuzzCmp                fuzzOp = "cmp"
+	fuzzCmp64              fuzzOp = "cmp64"
+	fuzzDec                fuzzOp = "dec"
+	fuzzEqual              fuzzOp = "equal"
+	fuzzEqual64            fuzzOp = "equal64"
+	fuzzFromFloat64        fuzzOp = "fromfloat64"
+	fuzzGreaterOrEqualTo   fuzzOp = "gte"
+	fuzzGreaterOrEqualTo64 fuzzOp = "gte64"
+	fuzzGreaterThan        fuzzOp = "gt"
+	fuzzGreaterThan64      fuzzOp = "gt64"
+	fuzzInc                fuzzOp = "inc"
+	fuzzLessOrEqualTo      fuzzOp = "lte"
+	fuzzLessOrEqualTo64    fuzzOp = "lte64"
+	fuzzLessThan           fuzzOp = "lt"
+	fuzzLessThan64         fuzzOp = "lt64"
+	fuzzLsh                fuzzOp = "lsh"
+	fuzzMul                fuzzOp = "mul"
+	fuzzMul64              fuzzOp = "mul64"
+	fuzzNeg                fuzzOp = "neg"
+	fuzzNot                fuzzOp = "not"
+	fuzzOr                 fuzzOp = "or"
+	fuzzQuo                fuzzOp = "quo"
+	fuzzQuo64              fuzzOp = "quo64"
+	fuzzQuoRem             fuzzOp = "quorem"
+	fuzzQuoRem64           fuzzOp = "quorem64"
+	fuzzRem                fuzzOp = "rem"
+	fuzzRem64              fuzzOp = "rem64"
+	fuzzRsh                fuzzOp = "rsh"
+	fuzzString             fuzzOp = "string"
+	fuzzSetBit             fuzzOp = "setbit"
+	fuzzSub                fuzzOp = "sub"
+	fuzzSub64              fuzzOp = "sub64"
+	fuzzXor                fuzzOp = "xor"
 )
 
 // These types are all enabled by default. You can instead pass them explicitly
@@ -98,10 +102,14 @@ var allFuzzOps = []fuzzOp{
 	fuzzEqual64,
 	fuzzFromFloat64,
 	fuzzGreaterOrEqualTo,
+	fuzzGreaterOrEqualTo64,
 	fuzzGreaterThan,
+	fuzzGreaterThan64,
 	fuzzInc,
 	fuzzLessOrEqualTo,
+	fuzzLessOrEqualTo64,
 	fuzzLessThan,
+	fuzzLessThan64,
 	fuzzLsh,
 	fuzzMul,
 	fuzzMul64,
@@ -141,10 +149,14 @@ type fuzzOps interface {
 	Equal64() error
 	FromFloat64() error
 	GreaterOrEqualTo() error
+	GreaterOrEqualTo64() error
 	GreaterThan() error
+	GreaterThan64() error
 	Inc() error
 	LessOrEqualTo() error
+	LessOrEqualTo64() error
 	LessThan() error
+	LessThan64() error
 	Lsh() error
 	Mul() error
 	Mul64() error
@@ -287,14 +299,22 @@ func TestFuzz(t *testing.T) {
 					err = fuzzImpl.FromFloat64()
 				case fuzzGreaterOrEqualTo:
 					err = fuzzImpl.GreaterOrEqualTo()
+				case fuzzGreaterOrEqualTo64:
+					err = fuzzImpl.GreaterOrEqualTo64()
 				case fuzzGreaterThan:
 					err = fuzzImpl.GreaterThan()
+				case fuzzGreaterThan64:
+					err = fuzzImpl.GreaterThan64()
 				case fuzzInc:
 					err = fuzzImpl.Inc()
 				case fuzzLessOrEqualTo:
 					err = fuzzImpl.LessOrEqualTo()
+				case fuzzLessOrEqualTo64:
+					err = fuzzImpl.LessOrEqualTo64()
 				case fuzzLessThan:
 					err = fuzzImpl.LessThan()
+				case fuzzLessThan64:
+					err = fuzzImpl.LessThan64()
 				case fuzzLsh:
 					err = fuzzImpl.Lsh()
 				case fuzzMul:
@@ -407,8 +427,8 @@ func (op fuzzOp) Print(operands ...*big.Int) string {
 	case fuzzAdd, fuzzAdd64,
 		fuzzAnd,
 		fuzzAndNot,
-		fuzzLessOrEqualTo,
-		fuzzLessThan,
+		fuzzLessOrEqualTo, fuzzLessOrEqualTo64,
+		fuzzLessThan, fuzzLessThan64,
 		fuzzLsh,
 		fuzzMul, fuzzMul64,
 		fuzzOr,
@@ -419,8 +439,8 @@ func (op fuzzOp) Print(operands ...*big.Int) string {
 		fuzzXor,
 		fuzzCmp,
 		fuzzEqual,
-		fuzzGreaterOrEqualTo,
-		fuzzGreaterThan,
+		fuzzGreaterOrEqualTo, fuzzGreaterOrEqualTo64,
+		fuzzGreaterThan, fuzzGreaterThan64,
 		fuzzSub:
 
 		// simple binary case:
@@ -457,15 +477,15 @@ func (op fuzzOp) String() string {
 		return "=="
 	case fuzzFromFloat64:
 		return "fromfloat64()"
-	case fuzzGreaterThan:
+	case fuzzGreaterThan, fuzzGreaterThan64:
 		return ">"
-	case fuzzGreaterOrEqualTo:
+	case fuzzGreaterOrEqualTo, fuzzGreaterOrEqualTo64:
 		return ">="
 	case fuzzInc:
 		return "++"
-	case fuzzLessThan:
+	case fuzzLessThan, fuzzLessThan64:
 		return "<"
-	case fuzzLessOrEqualTo:
+	case fuzzLessOrEqualTo, fuzzLessOrEqualTo64:
 		return "<="
 	case fuzzLsh:
 		return "<<"
@@ -700,10 +720,22 @@ func (f fuzzU128) GreaterThan() error {
 	return checkEqualBool(u1.GreaterThan(u2), b1.Cmp(b2) > 0)
 }
 
+func (f fuzzU128) GreaterThan64() error {
+	b1, b2 := f.source.BigU128And64()
+	u1, u2 := accU128FromBigInt(b1), accU64FromBigInt(b2)
+	return checkEqualBool(u1.GreaterThan64(u2), b1.Cmp(b2) > 0)
+}
+
 func (f fuzzU128) GreaterOrEqualTo() error {
 	b1, b2 := f.source.BigU128x2()
 	u1, u2 := accU128FromBigInt(b1), accU128FromBigInt(b2)
 	return checkEqualBool(u1.GreaterOrEqualTo(u2), b1.Cmp(b2) >= 0)
+}
+
+func (f fuzzU128) GreaterOrEqualTo64() error {
+	b1, b2 := f.source.BigU128And64()
+	u1, u2 := accU128FromBigInt(b1), accU64FromBigInt(b2)
+	return checkEqualBool(u1.GreaterOrEqualTo64(u2), b1.Cmp(b2) >= 0)
 }
 
 func (f fuzzU128) LessThan() error {
@@ -712,10 +744,22 @@ func (f fuzzU128) LessThan() error {
 	return checkEqualBool(u1.LessThan(u2), b1.Cmp(b2) < 0)
 }
 
+func (f fuzzU128) LessThan64() error {
+	b1, b2 := f.source.BigU128And64()
+	u1, u2 := accU128FromBigInt(b1), accU64FromBigInt(b2)
+	return checkEqualBool(u1.LessThan64(u2), b1.Cmp(b2) < 0)
+}
+
 func (f fuzzU128) LessOrEqualTo() error {
 	b1, b2 := f.source.BigU128x2()
 	u1, u2 := accU128FromBigInt(b1), accU128FromBigInt(b2)
 	return checkEqualBool(u1.LessOrEqualTo(u2), b1.Cmp(b2) <= 0)
+}
+
+func (f fuzzU128) LessOrEqualTo64() error {
+	b1, b2 := f.source.BigU128And64()
+	u1, u2 := accU128FromBigInt(b1), accU64FromBigInt(b2)
+	return checkEqualBool(u1.LessOrEqualTo64(u2), b1.Cmp(b2) <= 0)
 }
 
 func (f fuzzU128) And() error {
@@ -1070,8 +1114,8 @@ func (f fuzzI128) QuoRem64() error {
 
 func (f fuzzI128) Cmp() error {
 	b1, b2 := f.source.BigI128x2()
-	u1, u2 := accI128FromBigInt(b1), accI128FromBigInt(b2)
-	return checkEqualInt(u1.Cmp(u2), b1.Cmp(b2))
+	i1, i2 := accI128FromBigInt(b1), accI128FromBigInt(b2)
+	return checkEqualInt(i1.Cmp(i2), b1.Cmp(b2))
 }
 
 func (f fuzzI128) Cmp64() error {
@@ -1094,26 +1138,50 @@ func (f fuzzI128) Equal64() error {
 
 func (f fuzzI128) GreaterThan() error {
 	b1, b2 := f.source.BigI128x2()
-	u1, u2 := accI128FromBigInt(b1), accI128FromBigInt(b2)
-	return checkEqualBool(u1.GreaterThan(u2), b1.Cmp(b2) > 0)
+	i1, i2 := accI128FromBigInt(b1), accI128FromBigInt(b2)
+	return checkEqualBool(i1.GreaterThan(i2), b1.Cmp(b2) > 0)
+}
+
+func (f fuzzI128) GreaterThan64() error {
+	b1, b2 := f.source.BigI128And64()
+	i1, i2 := accI128FromBigInt(b1), accI64FromBigInt(b2)
+	return checkEqualBool(i1.GreaterThan64(i2), b1.Cmp(b2) > 0)
 }
 
 func (f fuzzI128) GreaterOrEqualTo() error {
 	b1, b2 := f.source.BigI128x2()
-	u1, u2 := accI128FromBigInt(b1), accI128FromBigInt(b2)
-	return checkEqualBool(u1.GreaterOrEqualTo(u2), b1.Cmp(b2) >= 0)
+	i1, i2 := accI128FromBigInt(b1), accI128FromBigInt(b2)
+	return checkEqualBool(i1.GreaterOrEqualTo(i2), b1.Cmp(b2) >= 0)
+}
+
+func (f fuzzI128) GreaterOrEqualTo64() error {
+	b1, b2 := f.source.BigI128And64()
+	i1, i2 := accI128FromBigInt(b1), accI64FromBigInt(b2)
+	return checkEqualBool(i1.GreaterOrEqualTo64(i2), b1.Cmp(b2) >= 0)
 }
 
 func (f fuzzI128) LessThan() error {
 	b1, b2 := f.source.BigI128x2()
-	u1, u2 := accI128FromBigInt(b1), accI128FromBigInt(b2)
-	return checkEqualBool(u1.LessThan(u2), b1.Cmp(b2) < 0)
+	i1, i2 := accI128FromBigInt(b1), accI128FromBigInt(b2)
+	return checkEqualBool(i1.LessThan(i2), b1.Cmp(b2) < 0)
+}
+
+func (f fuzzI128) LessThan64() error {
+	b1, b2 := f.source.BigI128And64()
+	i1, i2 := accI128FromBigInt(b1), accI64FromBigInt(b2)
+	return checkEqualBool(i1.LessThan64(i2), b1.Cmp(b2) < 0)
 }
 
 func (f fuzzI128) LessOrEqualTo() error {
 	b1, b2 := f.source.BigI128x2()
-	u1, u2 := accI128FromBigInt(b1), accI128FromBigInt(b2)
-	return checkEqualBool(u1.LessOrEqualTo(u2), b1.Cmp(b2) <= 0)
+	i1, i2 := accI128FromBigInt(b1), accI128FromBigInt(b2)
+	return checkEqualBool(i1.LessOrEqualTo(i2), b1.Cmp(b2) <= 0)
+}
+
+func (f fuzzI128) LessOrEqualTo64() error {
+	b1, b2 := f.source.BigI128And64()
+	i1, i2 := accI128FromBigInt(b1), accI64FromBigInt(b2)
+	return checkEqualBool(i1.LessOrEqualTo64(i2), b1.Cmp(b2) <= 0)
 }
 
 func (f fuzzI128) AsFloat64() error {

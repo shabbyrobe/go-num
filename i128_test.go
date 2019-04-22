@@ -151,20 +151,39 @@ func TestI128AsFloat64Random(t *testing.T) {
 
 	bts := make([]byte, 16)
 
-	for i := 0; i < 100000; i++ {
-		rand.Read(bts)
+	for i := 0; i < 1000; i++ {
+		for bits := uint(1); bits <= 127; bits++ {
+			rand.Read(bts)
 
-		num := I128{}
-		num.lo = binary.LittleEndian.Uint64(bts)
-		num.hi = binary.LittleEndian.Uint64(bts[8:])
+			var loMask, hiMask uint64
+			var loSet, hiSet uint64
+			if bits > 64 {
+				loMask = maxUint64
+				hiMask = (1 << (bits - 64)) - 1
+				hiSet = 1 << (bits - 64 - 1)
+			} else {
+				loMask = (1 << bits) - 1
+				loSet = 1 << (bits - 1)
+			}
 
-		af := num.AsFloat64()
-		bf := new(big.Float).SetFloat64(af)
-		rf := num.AsBigFloat()
+			num := I128{}
+			num.lo = (binary.LittleEndian.Uint64(bts) & loMask) | loSet
+			num.hi = (binary.LittleEndian.Uint64(bts[8:]) & hiMask) | hiSet
 
-		diff := new(big.Float).Sub(rf, bf)
-		pct := new(big.Float).Quo(diff, rf)
-		tt.MustAssert(pct.Cmp(floatDiffLimit) < 0, "%s: %.20f > %.20f", num, diff, floatDiffLimit)
+			for neg := 0; neg <= 1; neg++ {
+				if neg == 1 {
+					num = num.Neg()
+				}
+
+				af := num.AsFloat64()
+				bf := new(big.Float).SetFloat64(af)
+				rf := num.AsBigFloat()
+
+				diff := new(big.Float).Sub(rf, bf)
+				pct := new(big.Float).Quo(diff, rf)
+				tt.MustAssert(pct.Cmp(floatDiffLimit) < 0, "%s: %.20f > %.20f", num, diff, floatDiffLimit)
+			}
+		}
 	}
 }
 
@@ -242,6 +261,26 @@ func TestI128Dec(t *testing.T) {
 			tt := assert.WrapTB(t)
 			dec := tc.a.Dec()
 			tt.MustAssert(tc.b.Equal(dec), "%s - 1 != %s, found %s", tc.a, tc.b, dec)
+		})
+	}
+}
+
+func TestI128Format(t *testing.T) {
+	for _, tc := range []struct {
+		in  I128
+		f   string
+		out string
+	}{
+		{i64(123456789), "%d", "123456789"},
+		{i64(12), "%2d", "12"},
+		{i64(12), "%3d", " 12"},
+		{i64(12), "%02d", "12"},
+		{i64(12), "%03d", "012"},
+		{i64(123456789), "%s", "123456789"},
+	} {
+		t.Run("", func(t *testing.T) {
+			tt := assert.WrapTB(t)
+			tt.MustEqual(tc.out, fmt.Sprintf(tc.f, tc.in))
 		})
 	}
 }
@@ -451,6 +490,34 @@ func TestI128Mul(t *testing.T) {
 	}
 }
 
+func TestI128MustInt64(t *testing.T) {
+	for _, tc := range []struct {
+		a  I128
+		ok bool
+	}{
+		{i64(0), true},
+		{i64(1), true},
+		{i64(maxInt64), true},
+		{i128s("9223372036854775808"), false},
+		{MaxI128, false},
+
+		{i64(-1), true},
+		{i64(minInt64), true},
+		{i128s("-9223372036854775809"), false},
+		{MinI128, false},
+	} {
+		t.Run(fmt.Sprintf("(%s).64?==%v", tc.a, tc.ok), func(t *testing.T) {
+			tt := assert.WrapTB(t)
+			defer func() {
+				tt.Helper()
+				tt.MustAssert((recover() == nil) == tc.ok)
+			}()
+
+			tt.MustEqual(tc.a, I128From64(tc.a.MustInt64()))
+		})
+	}
+}
+
 func TestI128Neg(t *testing.T) {
 	for idx, tc := range []struct {
 		a, b I128
@@ -605,8 +672,9 @@ func TestI128Sub(t *testing.T) {
 }
 
 var (
-	BenchI128Result  I128
-	BenchInt64Result int64
+	BenchI128Result            I128
+	BenchInt64Result           int64
+	BenchmarkI128Float64Result float64
 )
 
 func BenchmarkI128Add(b *testing.B) {
@@ -622,6 +690,27 @@ func BenchmarkI128Add(b *testing.B) {
 		b.Run(fmt.Sprintf("%d/%s", idx, tc.name), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				BenchI128Result = tc.a.Add(tc.b)
+			}
+		})
+	}
+}
+
+func BenchmarkI128AsFloat(b *testing.B) {
+	for idx, tc := range []struct {
+		name string
+		in   I128
+	}{
+		{"zero", I128{}},
+		{"one", i64(1)},
+		{"minusone", i64(-1)},
+		{"maxInt64", i64(maxInt64)},
+		{"gt64bit", i128s("0x1 00000000 00000000")},
+		{"minInt64", i64(minInt64)},
+		{"minusgt64bit", i128s("-0x1 00000000 00000000")},
+	} {
+		b.Run(fmt.Sprintf("%d/%s", idx, tc.name), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				BenchmarkI128Float64Result = tc.in.AsFloat64()
 			}
 		})
 	}
@@ -674,6 +763,17 @@ func BenchmarkI128FromCast(b *testing.B) {
 	})
 }
 
+func BenchmarkI128FromFloat(b *testing.B) {
+	for _, pow := range []float64{1, 63, 64, 65, 127, 128} {
+		b.Run(fmt.Sprintf("pow%d", int(pow)), func(b *testing.B) {
+			f := math.Pow(2, pow)
+			for i := 0; i < b.N; i++ {
+				BenchI128Result, _ = I128FromFloat64(f)
+			}
+		})
+	}
+}
+
 func BenchmarkI128IsZero(b *testing.B) {
 	for idx, tc := range []struct {
 		name string
@@ -701,10 +801,33 @@ func BenchmarkI128LessThan(b *testing.B) {
 		{i64(-1), i64(-1)},
 		{i64(-1), i64(-2)},
 		{i64(-2), i64(-1)},
+		{MaxI128, MinI128},
+		{MinI128, MaxI128},
 	} {
 		b.Run(fmt.Sprintf("%s<%s", iv.a, iv.b), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				BenchBoolResult = iv.a.LessThan(iv.b)
+			}
+		})
+	}
+}
+
+func BenchmarkI128LessOrEqualTo(b *testing.B) {
+	for _, iv := range []struct {
+		a, b I128
+	}{
+		{i64(1), i64(1)},
+		{i64(2), i64(1)},
+		{i64(1), i64(2)},
+		{i64(-1), i64(-1)},
+		{i64(-1), i64(-2)},
+		{i64(-2), i64(-1)},
+		{MaxI128, MinI128},
+		{MinI128, MaxI128},
+	} {
+		b.Run(fmt.Sprintf("%s<%s", iv.a, iv.b), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				BenchBoolResult = iv.a.LessOrEqualTo(iv.b)
 			}
 		})
 	}

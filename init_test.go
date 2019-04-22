@@ -51,10 +51,11 @@ func TestMain(m *testing.M) {
 		}
 	}
 
-	log.Println("rando seed:", fuzzSeed) // classic rando!
-	log.Println("active ops:", fuzzOpsActive)
-	log.Println("iterations:", fuzzIterations)
-	log.Println("integer sz:", intSize)
+	log.Println("integer sz", intSize)
+	log.Println("rando seed (-num.fuzzseed):", fuzzSeed) // classic rando!
+	log.Println("fuzz types (-num.fuzztype):", fuzzTypesActive)
+	log.Println("iterations (-num.fuzziter):", fuzzIterations)
+	log.Println("active ops (-num.fuzzop)  :", fuzzOpsActive)
 
 	code := m.Run()
 	os.Exit(code)

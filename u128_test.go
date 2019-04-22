@@ -99,6 +99,23 @@ func TestMustU128FromString(t *testing.T) {
 	assert(false, u64(0), "120481092481092840918209481092380192830912830918230918")
 }
 
+func TestU128Add(t *testing.T) {
+	for _, tc := range []struct {
+		a, b, c U128
+	}{
+		{u64(1), u64(2), u64(3)},
+		{u64(10), u64(3), u64(13)},
+		{MaxU128, u64(1), u64(0)},                               // Overflow wraps
+		{u64(maxUint64), u64(1), u128s("18446744073709551616")}, // lo carries to hi
+		{u128s("18446744073709551615"), u128s("18446744073709551615"), u128s("36893488147419103230")},
+	} {
+		t.Run(fmt.Sprintf("%s+%s=%s", tc.a, tc.b, tc.c), func(t *testing.T) {
+			tt := assert.WrapTB(t)
+			tt.MustAssert(tc.c.Equal(tc.a.Add(tc.b)))
+		})
+	}
+}
+
 func TestU128AsBigInt(t *testing.T) {
 	for idx, tc := range []struct {
 		a U128
@@ -117,23 +134,6 @@ func TestU128AsBigInt(t *testing.T) {
 			tt := assert.WrapTB(t)
 			v := tc.a.AsBigInt()
 			tt.MustAssert(tc.b.Cmp(v) == 0, "found: %s", v)
-		})
-	}
-}
-
-func TestU128Add(t *testing.T) {
-	for _, tc := range []struct {
-		a, b, c U128
-	}{
-		{u64(1), u64(2), u64(3)},
-		{u64(10), u64(3), u64(13)},
-		{MaxU128, u64(1), u64(0)},                               // Overflow wraps
-		{u64(maxUint64), u64(1), u128s("18446744073709551616")}, // lo carries to hi
-		{u128s("18446744073709551615"), u128s("18446744073709551615"), u128s("36893488147419103230")},
-	} {
-		t.Run(fmt.Sprintf("%s+%s=%s", tc.a, tc.b, tc.c), func(t *testing.T) {
-			tt := assert.WrapTB(t)
-			tt.MustAssert(tc.c.Equal(tc.a.Add(tc.b)))
 		})
 	}
 }
@@ -454,6 +454,30 @@ func TestU128Mul(t *testing.T) {
 	v1.SetUint64(maxUint64)
 	v2.SetUint64(maxUint64)
 	tt.MustEqual(v.String(), v1.Mul(&v1, &v2).String())
+}
+
+func TestU128MustUint64(t *testing.T) {
+	for _, tc := range []struct {
+		a  U128
+		ok bool
+	}{
+		{u64(0), true},
+		{u64(1), true},
+		{u64(maxInt64), true},
+		{u64(maxUint64), true},
+		{U128FromRaw(1, 0), false},
+		{MaxU128, false},
+	} {
+		t.Run(fmt.Sprintf("(%s).64?==%v", tc.a, tc.ok), func(t *testing.T) {
+			tt := assert.WrapTB(t)
+			defer func() {
+				tt.Helper()
+				tt.MustAssert((recover() == nil) == tc.ok)
+			}()
+
+			tt.MustEqual(tc.a, U128From64(tc.a.MustUint64()))
+		})
+	}
 }
 
 func TestU128Not(t *testing.T) {

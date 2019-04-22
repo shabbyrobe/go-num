@@ -299,6 +299,15 @@ func (u U128) IsUint64() bool {
 	return u.hi == 0
 }
 
+// MustUint64 converts i to an unsigned 64-bit integer if the conversion would succeed,
+// and panics if it would not.
+func (u U128) MustUint64() uint64 {
+	if u.hi != 0 {
+		panic(fmt.Errorf("U128 %v is not representable as a uint64", u))
+	}
+	return u.lo
+}
+
 func (u U128) Inc() (v U128) {
 	v.lo = u.lo + 1
 	v.hi = u.hi
@@ -408,7 +417,7 @@ func (u U128) GreaterOrEqualTo(n U128) bool {
 	return u.hi > n.hi || (u.hi == n.hi && u.lo >= n.lo)
 }
 
-func (u U128) GreaterThanOrEqualTo64(n uint64) bool {
+func (u U128) GreaterOrEqualTo64(n uint64) bool {
 	return u.hi > 0 || u.lo >= n
 }
 

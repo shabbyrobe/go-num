@@ -301,20 +301,18 @@ func (i I128) AsBigFloat() (b *big.Float) {
 }
 
 func (i I128) AsFloat64() float64 {
-	if i.hi == 0 && i.lo == 0 {
-		return 0
-	} else if i.hi&signBit != 0 {
-		if i.hi == maxUint64 {
-			return -float64((^i.lo) + 1)
+	if i.hi == 0 {
+		if i.lo == 0 {
+			return 0
 		} else {
-			return (-float64(^i.hi) * maxUint64Float) + -float64(^i.lo)
-		}
-	} else {
-		if i.hi == 0 {
 			return float64(i.lo)
-		} else {
-			return (float64(i.hi) * maxUint64Float) + float64(i.lo)
 		}
+	} else if i.hi == maxUint64 {
+		return -float64((^i.lo) + 1)
+	} else if i.hi&signBit == 0 {
+		return (float64(i.hi) * maxUint64Float) + float64(i.lo)
+	} else {
+		return (-float64(^i.hi) * maxUint64Float) + -float64(^i.lo)
 	}
 }
 
@@ -335,6 +333,21 @@ func (i I128) IsInt64() bool {
 	} else {
 		return i.hi == 0 && i.lo <= maxInt64
 	}
+}
+
+// MustInt64 converts i to a signed 64-bit integer if the conversion would succeed, and
+// panics if it would not.
+func (i I128) MustInt64() int64 {
+	if i.hi&signBit != 0 {
+		if i.hi == maxUint64 && i.lo >= 0x8000000000000000 {
+			return -int64(^(i.lo - 1))
+		}
+	} else {
+		if i.hi == 0 && i.lo <= maxInt64 {
+			return int64(i.lo)
+		}
+	}
+	panic(fmt.Errorf("I128 %v is not representable as an int64", i))
 }
 
 func (i I128) Sign() int {
@@ -526,12 +539,45 @@ func (i I128) GreaterThan(n I128) bool {
 	return false
 }
 
+func (i I128) GreaterThan64(n int64) bool {
+	var nhi uint64
+	var nlo = uint64(n)
+	if n < 0 {
+		nhi = maxUint64
+	}
+
+	if i.hi&signBit == nhi&signBit {
+		return i.hi > nhi || (i.hi == nhi && i.lo > nlo)
+	} else if i.hi&signBit == 0 {
+		return true
+	}
+	return false
+}
+
 func (i I128) GreaterOrEqualTo(n I128) bool {
 	if i.hi == n.hi && i.lo == n.lo {
 		return true
 	}
 	if i.hi&signBit == n.hi&signBit {
 		return i.hi > n.hi || (i.hi == n.hi && i.lo > n.lo)
+	} else if i.hi&signBit == 0 {
+		return true
+	}
+	return false
+}
+
+func (i I128) GreaterOrEqualTo64(n int64) bool {
+	var nhi uint64
+	var nlo = uint64(n)
+	if n < 0 {
+		nhi = maxUint64
+	}
+
+	if i.hi == nhi && i.lo == nlo {
+		return true
+	}
+	if i.hi&signBit == nhi&signBit {
+		return i.hi > nhi || (i.hi == nhi && i.lo > nlo)
 	} else if i.hi&signBit == 0 {
 		return true
 	}
@@ -547,12 +593,45 @@ func (i I128) LessThan(n I128) bool {
 	return false
 }
 
+func (i I128) LessThan64(n int64) bool {
+	var nhi uint64
+	var nlo = uint64(n)
+	if n < 0 {
+		nhi = maxUint64
+	}
+
+	if i.hi&signBit == nhi&signBit {
+		return i.hi < nhi || (i.hi == nhi && i.lo < nlo)
+	} else if i.hi&signBit != 0 {
+		return true
+	}
+	return false
+}
+
 func (i I128) LessOrEqualTo(n I128) bool {
 	if i.hi == n.hi && i.lo == n.lo {
 		return true
 	}
 	if i.hi&signBit == n.hi&signBit {
 		return i.hi < n.hi || (i.hi == n.hi && i.lo < n.lo)
+	} else if i.hi&signBit != 0 {
+		return true
+	}
+	return false
+}
+
+func (i I128) LessOrEqualTo64(n int64) bool {
+	var nhi uint64
+	var nlo = uint64(n)
+	if n < 0 {
+		nhi = maxUint64
+	}
+
+	if i.hi == nhi && i.lo == nlo {
+		return true
+	}
+	if i.hi&signBit == nhi&signBit {
+		return i.hi < nhi || (i.hi == nhi && i.lo < nlo)
 	} else if i.hi&signBit != 0 {
 		return true
 	}
