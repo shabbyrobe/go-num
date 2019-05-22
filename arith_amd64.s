@@ -1,13 +1,5 @@
 #include "textflag.h"
 
-// func mul64to128(u, v uint64) (hi, lo uint64)
-TEXT ·mul64to128(SB),NOSPLIT,$0
-	MOVQ x+0(FP), AX
-	MULQ y+8(FP)
-	MOVQ DX, z1+16(FP)
-	MOVQ AX, z0+24(FP)
-	RET
-
 // func mul128to256(uhi, ulo, vhi, vlo uint64) (hi, hm, hl, lo uint64)
 TEXT ·mul128to256(SB),NOSPLIT,$0
 	// hi, hm = mul64to128(uhi, vhi)

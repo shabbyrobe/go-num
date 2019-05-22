@@ -3,6 +3,7 @@ package num
 import (
 	"fmt"
 	"math/big"
+	"math/bits"
 )
 
 const (
@@ -671,24 +672,9 @@ func (i I128) LessOrEqualTo64(n int64) bool {
 // Overflow should wrap around, as per the Go spec.
 //
 func (i I128) Mul(n I128) (dest I128) {
-	// Unfortunately, this is slightly too complex for Go 1.11 to inline.
-
-	// Adapted from Warren, Hacker's Delight, p. 132.
-	hl := i.hi*n.lo + i.lo*n.hi
-
-	dest.lo = i.lo * n.lo // lower 64 bits
-
-	// break the multiplication into (x1 << 32 + x0)(y1 << 32 + y0)
-	// which is x1*y1 << 64 + (x0*y1 + x1*y0) << 32 + x0*y0
-	// so now we can do 64 bit multiplication and addition and
-	// shift the results into the right place
-	x0, x1 := i.lo&0x00000000ffffffff, i.lo>>32
-	y0, y1 := n.lo&0x00000000ffffffff, n.lo>>32
-	t := x1*y0 + (x0*y0)>>32
-	w1 := (t & 0x00000000ffffffff) + (x0 * y1)
-	dest.hi = (x1 * y1) + (t >> 32) + (w1 >> 32) + hl
-
-	return dest
+	hi, lo := bits.Mul64(i.lo, n.lo)
+	hi += i.hi*n.lo + i.lo*n.hi
+	return I128{hi, lo}
 }
 
 func (i I128) Mul64(n64 int64) (dest I128) {

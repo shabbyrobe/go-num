@@ -568,23 +568,10 @@ func (u U128) Rsh(n uint) (v U128) {
 	return v
 }
 
-func (u U128) Mul(n U128) (dest U128) {
-	// Adapted from Warren, Hacker's Delight, p. 132.
-	hl := u.hi*n.lo + u.lo*n.hi
-
-	dest.lo = u.lo * n.lo // lower 64 bits are easy
-
-	// break the multiplication into (x1 << 32 + x0)(y1 << 32 + y0)
-	// which is x1*y1 << 64 + (x0*y1 + x1*y0) << 32 + x0*y0
-	// so now we can do 64 bit multiplication and addition and
-	// shift the results into the right place
-	x0, x1 := u.lo&0x00000000ffffffff, u.lo>>32
-	y0, y1 := n.lo&0x00000000ffffffff, n.lo>>32
-	t := x1*y0 + (x0*y0)>>32
-	w1 := (t & 0x00000000ffffffff) + (x0 * y1)
-	dest.hi = (x1 * y1) + (t >> 32) + (w1 >> 32) + hl
-
-	return dest
+func (u U128) Mul(n U128) U128 {
+	hi, lo := bits.Mul64(u.lo, n.lo)
+	hi += u.hi*n.lo + u.lo*n.hi
+	return U128{hi, lo}
 }
 
 func (u U128) Mul64(n uint64) (dest U128) {

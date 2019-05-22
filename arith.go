@@ -2,28 +2,6 @@
 
 package num
 
-func mul64to128(u, v uint64) (hi, lo uint64) {
-	var (
-		u1 = (u & 0xffffffff)
-		v1 = (v & 0xffffffff)
-		t  = (u1 * v1)
-		w3 = (t & 0xffffffff)
-		k  = (t >> 32)
-	)
-
-	u >>= 32
-	t = (u * v1) + k
-	k = (t & 0xffffffff)
-	var w1 = (t >> 32)
-
-	v >>= 32
-	t = (u1 * v) + k
-	k = (t >> 32)
-
-	return (u * v) + w1 + k,
-		(t << 32) + w3
-}
-
 func mul128to256(uhi, ulo, vhi, vlo uint64) (hi, hm, lm, lo uint64) {
 	hi, hm = mul64to128(uhi, vhi)
 	lm, lo = mul64to128(ulo, vlo)
