@@ -309,56 +309,44 @@ func (u U128) MustUint64() uint64 {
 }
 
 func (u U128) Inc() (v U128) {
-	v.lo = u.lo + 1
-	v.hi = u.hi
-	if u.lo > v.lo {
-		v.hi++
-	}
+	var carry uint64
+	v.lo, carry = bits.Add64(u.lo, 1, 0)
+	v.hi = u.hi + carry
 	return v
 }
 
 func (u U128) Dec() (v U128) {
-	v.lo = u.lo - 1
-	v.hi = u.hi
-	if u.lo < v.lo {
-		v.hi--
-	}
+	var borrowed uint64
+	v.lo, borrowed = bits.Sub64(u.lo, 1, 0)
+	v.hi = u.hi - borrowed
 	return v
 }
 
 func (u U128) Add(n U128) (v U128) {
-	v.lo = u.lo + n.lo
-	v.hi = u.hi + n.hi
-	if u.lo > v.lo {
-		v.hi++
-	}
+	var carry uint64
+	v.lo, carry = bits.Add64(u.lo, n.lo, 0)
+	v.hi, _ = bits.Add64(u.hi, n.hi, carry)
 	return v
 }
 
 func (u U128) Add64(n uint64) (v U128) {
-	v.hi = u.hi
-	v.lo = u.lo + n
-	if u.lo > v.lo {
-		v.hi++
-	}
+	var carry uint64
+	v.lo, carry = bits.Add64(u.lo, n, 0)
+	v.hi = u.hi + carry
 	return v
 }
 
 func (u U128) Sub(n U128) (v U128) {
-	v.lo = u.lo - n.lo
-	v.hi = u.hi - n.hi
-	if u.lo < v.lo {
-		v.hi--
-	}
+	var borrowed uint64
+	v.lo, borrowed = bits.Sub64(u.lo, n.lo, 0)
+	v.hi, _ = bits.Sub64(u.hi, n.hi, borrowed)
 	return v
 }
 
 func (u U128) Sub64(n uint64) (v U128) {
-	v.hi = u.hi
-	v.lo = u.lo - n
-	if u.lo < v.lo {
-		v.hi--
-	}
+	var borrowed uint64
+	v.lo, borrowed = bits.Sub64(u.lo, n, 0)
+	v.hi = u.hi - borrowed
 	return v
 }
 

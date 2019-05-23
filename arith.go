@@ -33,21 +33,3 @@ func mul128to256(uhi, ulo, vhi, vlo uint64) (hi, hm, lm, lo uint64) {
 
 	return hi, hm, lm, lo
 }
-
-func mul128to128(uhi, ulo, nhi, nlo uint64) (ohi, olo uint64) {
-	// Adapted from Warren, Hacker's Delight, p. 132.
-	hl := uhi*nlo + ulo*nhi
-
-	olo = ulo * nlo // lower 64 bits are easy
-
-	// break the multiplication into (x1 << 32 + x0)(y1 << 32 + y0)
-	// which is x1*y1 << 64 + (x0*y1 + x1*y0) << 32 + x0*y0
-	// so now we can do 64 bit multiplication and addition and
-	// shift the results into the right place
-	x0, x1 := ulo&0x00000000ffffffff, ulo>>32
-	y0, y1 := nlo&0x00000000ffffffff, nlo>>32
-	t := x1*y0 + (x0*y0)>>32
-	w1 := (t & 0x00000000ffffffff) + (x0 * y1)
-	ohi = (x1 * y1) + (t >> 32) + (w1 >> 32) + hl
-	return ohi, olo
-}

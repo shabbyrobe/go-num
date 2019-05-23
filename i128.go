@@ -407,47 +407,41 @@ func (i I128) Dec() (v I128) {
 }
 
 func (i I128) Add(n I128) (v I128) {
-	v.lo = i.lo + n.lo
-	v.hi = i.hi + n.hi
-	if i.lo > v.lo {
-		v.hi++
-	}
+	var carry uint64
+	v.lo, carry = bits.Add64(i.lo, n.lo, 0)
+	v.hi, _ = bits.Add64(i.hi, n.hi, carry)
 	return v
 }
 
 func (i I128) Add64(n int64) (v I128) {
-	var hi uint64
+	var carry uint64
 	if n < 0 {
-		hi = maxUint64
-	}
-	v.lo = i.lo + uint64(n)
-	v.hi = i.hi + hi
-	if i.lo > v.lo {
-		v.hi++
+		v.lo, carry = bits.Add64(i.lo, uint64(n), 0)
+		v.hi = i.hi + maxUint64 + carry
+	} else {
+		v.lo, carry = bits.Add64(i.lo, uint64(n), 0)
+		v.hi = i.hi + carry
 	}
 	return v
 }
 
-func (i I128) Sub(n I128) (out I128) {
-	out.lo = i.lo - n.lo
-	out.hi = i.hi - n.hi
-	if i.lo < out.lo {
-		out.hi--
-	}
-	return out
+func (i I128) Sub(n I128) (v I128) {
+	var borrowed uint64
+	v.lo, borrowed = bits.Sub64(i.lo, n.lo, 0)
+	v.hi, _ = bits.Sub64(i.hi, n.hi, borrowed)
+	return v
 }
 
-func (i I128) Sub64(n int64) (out I128) {
-	var hi uint64
+func (i I128) Sub64(n int64) (v I128) {
+	var borrowed uint64
 	if n < 0 {
-		hi = maxUint64
+		v.lo, borrowed = bits.Sub64(i.lo, uint64(n), 0)
+		v.hi = i.hi - maxUint64 - borrowed
+	} else {
+		v.lo, borrowed = bits.Sub64(i.lo, uint64(n), 0)
+		v.hi = i.hi - borrowed
 	}
-	out.lo = i.lo - uint64(n)
-	out.hi = i.hi - hi
-	if i.lo < out.lo {
-		out.hi--
-	}
-	return out
+	return v
 }
 
 func (i I128) Neg() (v I128) {

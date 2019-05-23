@@ -6,6 +6,8 @@ num: 128-bit signed and unsigned integers for Go
 Fastish `int128` (`num.I128`) and `uint128` (`num.U128`) 128-bit integer types
 for Go, providing the majority of methods found in `big.Int`.
 
+`num` requires Go 1.12 or greater.
+
 `I128` is a signed "two's complement" implementation that should behave the
 same way on overflow as `int64`.
 

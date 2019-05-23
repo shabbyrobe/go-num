@@ -671,6 +671,32 @@ func TestI128Sub(t *testing.T) {
 	}
 }
 
+func TestI128Sub64(t *testing.T) {
+	for idx, tc := range []struct {
+		a I128
+		b int64
+		c I128
+	}{
+		{i64(-2), -1, i64(-1)},
+		{i64(-2), 1, i64(-3)},
+		{i64(2), 1, i64(1)},
+		{i64(2), -1, i64(3)},
+		{i64(1), 2, i64(-1)},  // crossing zero
+		{i64(-1), -2, i64(1)}, // crossing zero
+
+		{MinI128, 1, MaxI128},  // Overflow wraps
+		{MaxI128, -1, MinI128}, // Overflow wraps
+
+		{i128s("0x10000000000000000"), 1, i128s("0xFFFFFFFFFFFFFFFF")},  // carry down
+		{i128s("0xFFFFFFFFFFFFFFFF"), -1, i128s("0x10000000000000000")}, // carry up
+	} {
+		t.Run(fmt.Sprintf("%d/%s-%d=%s", idx, tc.a, tc.b, tc.c), func(t *testing.T) {
+			tt := assert.WrapTB(t)
+			tt.MustAssert(tc.c.Equal(tc.a.Sub64(tc.b)))
+		})
+	}
+}
+
 var (
 	BenchI128Result            I128
 	BenchInt64Result           int64
@@ -690,6 +716,27 @@ func BenchmarkI128Add(b *testing.B) {
 		b.Run(fmt.Sprintf("%d/%s", idx, tc.name), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				BenchI128Result = tc.a.Add(tc.b)
+			}
+		})
+	}
+}
+
+func BenchmarkI128Add64(b *testing.B) {
+	for idx, tc := range []struct {
+		a    I128
+		b    int64
+		name string
+	}{
+		{zeroI128, 0, "0+0"},
+		{MaxI128, maxInt64, "max+max"},
+		{i64(-1), -1, "-1+-1"},
+		{i64(-1), 1, "-1+1"},
+		{i64(minInt64), -1, "-min64-1"},
+		{i128s("0xFFFFFFFFFFFFFFFF"), 1, "carry"},
+	} {
+		b.Run(fmt.Sprintf("%d/%s", idx, tc.name), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				BenchI128Result = tc.a.Add64(tc.b)
 			}
 		})
 	}
