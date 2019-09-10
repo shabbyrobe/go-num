@@ -880,6 +880,21 @@ func BenchmarkI128LessOrEqualTo(b *testing.B) {
 	}
 }
 
+func BenchmarkI128Mul(b *testing.B) {
+	v := I128From64(maxInt64)
+	for i := 0; i < b.N; i++ {
+		BenchI128Result = v.Mul(v)
+	}
+}
+
+func BenchmarkI128Mul64(b *testing.B) {
+	v := I128From64(maxInt64)
+	lim := int64(b.N)
+	for i := int64(0); i < lim; i++ {
+		BenchI128Result = v.Mul64(i)
+	}
+}
+
 func BenchmarkI128Sub(b *testing.B) {
 	sub := i64(1)
 	for _, iv := range []I128{i64(1), i128s("0x10000000000000000"), MaxI128} {

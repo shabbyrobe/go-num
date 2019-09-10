@@ -892,6 +892,14 @@ func BenchmarkU128Mul(b *testing.B) {
 	}
 }
 
+func BenchmarkU128Mul64(b *testing.B) {
+	u := U128From64(maxUint64)
+	lim := uint64(b.N)
+	for i := uint64(0); i < lim; i++ {
+		BenchU128Result = u.Mul64(i)
+	}
+}
+
 var benchQuoCases = []struct {
 	name     string
 	dividend U128

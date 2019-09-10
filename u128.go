@@ -563,17 +563,8 @@ func (u U128) Mul(n U128) U128 {
 }
 
 func (u U128) Mul64(n uint64) (dest U128) {
-	// NOTE: Copied from Mul() with n.hi removed. There may be a simpler
-	// way to do mul128x64?
-	hl := u.hi * n
-	dest.lo = u.lo * n
-
-	x0, x1 := u.lo&0x00000000ffffffff, u.lo>>32
-	y0, y1 := n&0x00000000ffffffff, n>>32
-	t := x1*y0 + (x0*y0)>>32
-	w1 := (t & 0x00000000ffffffff) + (x0 * y1)
-	dest.hi = (x1 * y1) + (t >> 32) + (w1 >> 32) + hl
-
+	dest.hi, dest.lo = bits.Mul64(u.lo, n)
+	dest.hi += u.hi * n
 	return dest
 }
 
