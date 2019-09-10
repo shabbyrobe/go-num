@@ -945,6 +945,13 @@ func BenchmarkU128QuoRem(b *testing.B) {
 }
 
 func BenchmarkU128QuoRemTZ(b *testing.B) {
+	type tc struct {
+		zeros  int
+		useRem int
+		da, db U128
+	}
+	var cases []tc
+
 	// If there's a big jump in speed from one of these cases to the next, it
 	// could be indicative that the algorithm selection spill point
 	// (divAlgoLeading0Spill) needs to change.
@@ -953,62 +960,93 @@ func BenchmarkU128QuoRemTZ(b *testing.B) {
 	// likely platform and possibly CPU specific.
 	for zeros := 0; zeros < 31; zeros++ {
 		for useRem := 0; useRem < 2; useRem++ {
-			b.Run(fmt.Sprintf("z=%d/rem=%v", zeros, useRem == 1), func(b *testing.B) {
-				bs := "0b"
-				for j := 0; j < 128; j++ {
-					if j >= zeros {
-						bs += "1"
-					} else {
-						bs += "0"
-					}
+			bs := "0b"
+			for j := 0; j < 128; j++ {
+				if j >= zeros {
+					bs += "1"
+				} else {
+					bs += "0"
 				}
+			}
 
-				da := u128s("0x98765432109876543210987654321098")
-				db := u128s(bs)
-
-				b.ResetTimer()
-				for i := 0; i < b.N; i++ {
-					if useRem == 1 {
-						BenchU128Result, _ = da.QuoRem(db)
-					} else {
-						BenchU128Result = da.Quo(db)
-					}
-				}
+			da := u128s("0x98765432109876543210987654321098")
+			db := u128s(bs)
+			cases = append(cases, tc{
+				zeros:  zeros,
+				useRem: useRem,
+				da:     da,
+				db:     db,
 			})
 		}
+	}
+
+	for _, tc := range cases {
+		b.Run(fmt.Sprintf("z=%d/rem=%v", tc.zeros, tc.useRem == 1), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				if tc.useRem == 1 {
+					BenchU128Result, _ = tc.da.QuoRem(tc.db)
+				} else {
+					BenchU128Result = tc.da.Quo(tc.db)
+				}
+			}
+		})
+	}
+}
+
+func BenchmarkU128QuoRem64(b *testing.B) {
+	// FIXME: benchmark numbers of various sizes
+	u, v := u64(1234), uint64(56)
+	for i := 0; i < b.N; i++ {
+		BenchU128Result, _ = u.QuoRem64(v)
 	}
 }
 
 func BenchmarkU128QuoRem64TZ(b *testing.B) {
+	type tc struct {
+		zeros  int
+		useRem int
+		da     U128
+		db     uint64
+	}
+	var cases []tc
+
 	for zeros := 0; zeros < 31; zeros++ {
 		for useRem := 0; useRem < 2; useRem++ {
-			b.Run(fmt.Sprintf("z=%d/rem=%v", zeros, useRem == 1), func(b *testing.B) {
-				bs := "0b"
-				for j := 0; j < 64; j++ {
-					if j >= zeros {
-						bs += "1"
-					} else {
-						bs += "0"
-					}
+			bs := "0b"
+			for j := 0; j < 64; j++ {
+				if j >= zeros {
+					bs += "1"
+				} else {
+					bs += "0"
 				}
+			}
 
-				da := u128s("0x98765432109876543210987654321098")
-				db128 := u128s(bs)
-				if !db128.IsUint64() {
-					panic("oh dear!")
-				}
-				db := db128.AsUint64()
+			da := u128s("0x98765432109876543210987654321098")
+			db128 := u128s(bs)
+			if !db128.IsUint64() {
+				panic("oh dear!")
+			}
+			db := db128.AsUint64()
 
-				b.ResetTimer()
-				for i := 0; i < b.N; i++ {
-					if useRem == 1 {
-						BenchU128Result, _ = da.QuoRem64(db)
-					} else {
-						BenchU128Result = da.Quo64(db)
-					}
-				}
+			cases = append(cases, tc{
+				zeros:  zeros,
+				useRem: useRem,
+				da:     da,
+				db:     db,
 			})
 		}
+	}
+
+	for _, tc := range cases {
+		b.Run(fmt.Sprintf("z=%d/rem=%v", tc.zeros, tc.useRem == 1), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				if tc.useRem == 1 {
+					BenchU128Result, _ = tc.da.QuoRem64(tc.db)
+				} else {
+					BenchU128Result = tc.da.Quo64(tc.db)
+				}
+			}
+		})
 	}
 }
 

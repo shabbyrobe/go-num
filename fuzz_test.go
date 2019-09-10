@@ -191,16 +191,16 @@ func checkEqualBool(u bool, b bool) error {
 	return nil
 }
 
-func checkEqualU128(u U128, b *big.Int) error {
+func checkEqualU128(n string, u U128, b *big.Int) error {
 	if u.AsBigInt().Cmp(b) != 0 {
-		return fmt.Errorf("u128(%s) != big(%s)", u.String(), b.String())
+		return fmt.Errorf("%s: u128(%s) != big(%s)", n, u.String(), b.String())
 	}
 	return nil
 }
 
-func checkEqualI128(i I128, b *big.Int) error {
+func checkEqualI128(n string, i I128, b *big.Int) error {
 	if i.AsBigInt().Cmp(b) != 0 {
-		return fmt.Errorf("i128(%s) != big(%s)", i.String(), b.String())
+		return fmt.Errorf("%s: i128(%s) != big(%s)", n, i.String(), b.String())
 	}
 	return nil
 }
@@ -536,7 +536,7 @@ func (f fuzzU128) Inc() error {
 	if rb.Cmp(wrapBigU128) >= 0 {
 		rb = new(big.Int).Sub(rb, wrapBigU128) // simulate overflow
 	}
-	return checkEqualU128(ru, rb)
+	return checkEqualU128("inc", ru, rb)
 }
 
 func (f fuzzU128) Dec() error {
@@ -547,7 +547,7 @@ func (f fuzzU128) Dec() error {
 		rb = new(big.Int).Add(wrapBigU128, rb) // simulate underflow
 	}
 	ru := u1.Dec()
-	return checkEqualU128(ru, rb)
+	return checkEqualU128("dec", ru, rb)
 }
 
 func (f fuzzU128) Add() error {
@@ -556,7 +556,7 @@ func (f fuzzU128) Add() error {
 	rb := new(big.Int).Add(b1, b2)
 	rb = simulateBigU128Overflow(rb)
 	ru := u1.Add(u2)
-	return checkEqualU128(ru, rb)
+	return checkEqualU128("add", ru, rb)
 }
 
 func (f fuzzU128) Add64() error {
@@ -565,7 +565,7 @@ func (f fuzzU128) Add64() error {
 	rb := new(big.Int).Add(b1, b2)
 	rb = simulateBigU128Overflow(rb)
 	ru := u1.Add64(u2)
-	return checkEqualU128(ru, rb)
+	return checkEqualU128("add64", ru, rb)
 }
 
 func (f fuzzU128) Sub() error {
@@ -576,7 +576,7 @@ func (f fuzzU128) Sub() error {
 		rb = new(big.Int).Add(wrapBigU128, rb) // simulate underflow
 	}
 	ru := u1.Sub(u2)
-	return checkEqualU128(ru, rb)
+	return checkEqualU128("sub", ru, rb)
 }
 
 func (f fuzzU128) Sub64() error {
@@ -587,7 +587,7 @@ func (f fuzzU128) Sub64() error {
 		rb = new(big.Int).Add(wrapBigU128, rb) // simulate underflow
 	}
 	ru := u1.Sub64(u2)
-	return checkEqualU128(ru, rb)
+	return checkEqualU128("sub64", ru, rb)
 }
 
 func (f fuzzU128) Mul() error {
@@ -596,7 +596,7 @@ func (f fuzzU128) Mul() error {
 	rb := new(big.Int).Mul(b1, b2)
 	rb = simulateBigU128Overflow(rb)
 	ru := u1.Mul(u2)
-	return checkEqualU128(ru, rb)
+	return checkEqualU128("mul", ru, rb)
 }
 
 func (f fuzzU128) Mul64() error {
@@ -605,7 +605,7 @@ func (f fuzzU128) Mul64() error {
 	rb := new(big.Int).Mul(b1, b2)
 	rb = simulateBigU128Overflow(rb)
 	ru := u1.Mul64(u2)
-	return checkEqualU128(ru, rb)
+	return checkEqualU128("mul64", ru, rb)
 }
 
 func (f fuzzU128) Quo() error {
@@ -616,7 +616,7 @@ func (f fuzzU128) Quo() error {
 	}
 	rb := new(big.Int).Quo(b1, b2)
 	ru := u1.Quo(u2)
-	return checkEqualU128(ru, rb)
+	return checkEqualU128("quo", ru, rb)
 }
 
 func (f fuzzU128) Quo64() error {
@@ -627,7 +627,7 @@ func (f fuzzU128) Quo64() error {
 	}
 	rb := new(big.Int).Quo(b1, b2)
 	ru := u1.Quo64(u2)
-	return checkEqualU128(ru, rb)
+	return checkEqualU128("quo64", ru, rb)
 }
 
 func (f fuzzU128) Rem() error {
@@ -638,7 +638,7 @@ func (f fuzzU128) Rem() error {
 	}
 	rb := new(big.Int).Rem(b1, b2)
 	ru := u1.Rem(u2)
-	return checkEqualU128(ru, rb)
+	return checkEqualU128("rem", ru, rb)
 }
 
 func (f fuzzU128) Rem64() error {
@@ -649,7 +649,7 @@ func (f fuzzU128) Rem64() error {
 	}
 	rb := new(big.Int).Rem(b1, b2)
 	ru := u1.Rem64(u2)
-	return checkEqualU128(ru, rb)
+	return checkEqualU128("rem64", ru, rb)
 }
 
 func (f fuzzU128) QuoRem() error {
@@ -662,10 +662,10 @@ func (f fuzzU128) QuoRem() error {
 	rbq := new(big.Int).Quo(b1, b2)
 	rbr := new(big.Int).Rem(b1, b2)
 	ruq, rur := u1.QuoRem(u2)
-	if err := checkEqualU128(ruq, rbq); err != nil {
+	if err := checkEqualU128("quo", ruq, rbq); err != nil {
 		return err
 	}
-	if err := checkEqualU128(rur, rbr); err != nil {
+	if err := checkEqualU128("rem", rur, rbr); err != nil {
 		return err
 	}
 	return nil
@@ -681,10 +681,10 @@ func (f fuzzU128) QuoRem64() error {
 	rbq := new(big.Int).Quo(b1, b2)
 	rbr := new(big.Int).Rem(b1, b2)
 	ruq, rur := u1.QuoRem64(u2)
-	if err := checkEqualU128(ruq, rbq); err != nil {
+	if err := checkEqualU128("quo64", ruq, rbq); err != nil {
 		return err
 	}
-	if err := checkEqualU128(rur, rbr); err != nil {
+	if err := checkEqualU128("rem64", rur, rbr); err != nil {
 		return err
 	}
 	return nil
@@ -767,7 +767,7 @@ func (f fuzzU128) And() error {
 	u1, u2 := accU128FromBigInt(b1), accU128FromBigInt(b2)
 	rb := new(big.Int).And(b1, b2)
 	ru := u1.And(u2)
-	return checkEqualU128(ru, rb)
+	return checkEqualU128("and", ru, rb)
 }
 
 func (f fuzzU128) AndNot() error {
@@ -775,7 +775,7 @@ func (f fuzzU128) AndNot() error {
 	u1, u2 := accU128FromBigInt(b1), accU128FromBigInt(b2)
 	rb := new(big.Int).AndNot(b1, b2)
 	ru := u1.AndNot(u2)
-	return checkEqualU128(ru, rb)
+	return checkEqualU128("andnot", ru, rb)
 }
 
 func (f fuzzU128) Or() error {
@@ -783,7 +783,7 @@ func (f fuzzU128) Or() error {
 	u1, u2 := accU128FromBigInt(b1), accU128FromBigInt(b2)
 	rb := new(big.Int).Or(b1, b2)
 	ru := u1.Or(u2)
-	return checkEqualU128(ru, rb)
+	return checkEqualU128("or", ru, rb)
 }
 
 func (f fuzzU128) Xor() error {
@@ -791,7 +791,7 @@ func (f fuzzU128) Xor() error {
 	u1, u2 := accU128FromBigInt(b1), accU128FromBigInt(b2)
 	rb := new(big.Int).Xor(b1, b2)
 	ru := u1.Xor(u2)
-	return checkEqualU128(ru, rb)
+	return checkEqualU128("xor", ru, rb)
 }
 
 func (f fuzzU128) Lsh() error {
@@ -800,7 +800,7 @@ func (f fuzzU128) Lsh() error {
 	rb := new(big.Int).Lsh(b1, by)
 	rb.And(rb, maxBigU128)
 	ru := u1.Lsh(by)
-	return checkEqualU128(ru, rb)
+	return checkEqualU128("lsh", ru, rb)
 }
 
 func (f fuzzU128) Rsh() error {
@@ -808,7 +808,7 @@ func (f fuzzU128) Rsh() error {
 	u1 := accU128FromBigInt(b1)
 	rb := new(big.Int).Rsh(b1, by)
 	ru := u1.Rsh(by)
-	return checkEqualU128(ru, rb)
+	return checkEqualU128("rsh", ru, rb)
 }
 
 func (f fuzzU128) Neg() error {
@@ -846,7 +846,7 @@ func (f fuzzU128) FromFloat64() error {
 
 	isZero := b1.Cmp(big0) == 0
 	if isZero {
-		return checkEqualU128(r1, b1)
+		return checkEqualU128("fromfloat64", r1, b1)
 	} else {
 		diffFloat := new(big.Float).Quo(diff.AsBigFloat(), bf1)
 		if diffFloat.Cmp(floatDiffLimit) > 0 {
@@ -875,7 +875,7 @@ func (f fuzzU128) SetBit() error {
 
 	rb := new(big.Int).SetBit(b1, int(bt), bvi)
 	ru := u1.SetBit(int(bt), bvi)
-	return checkEqualU128(ru, rb)
+	return checkEqualU128("setbit", ru, rb)
 }
 
 func (f fuzzU128) Bit() error {
@@ -924,10 +924,10 @@ func (f fuzzI128) Abs() error {
 
 	rb := new(big.Int).Abs(b1)
 	ib := simulateBigI128Overflow(rb)
-	if err := checkEqualI128(i1.Abs(), ib); err != nil {
+	if err := checkEqualI128("abs128", i1.Abs(), ib); err != nil {
 		return fmt.Errorf("Abs() failed: %v", err)
 	}
-	if err := checkEqualU128(i1.AbsU128(), rb); err != nil {
+	if err := checkEqualU128("absu128", i1.AbsU128(), rb); err != nil {
 		return fmt.Errorf("AbsU128() failed: %v", err)
 	}
 
@@ -940,7 +940,7 @@ func (f fuzzI128) Inc() error {
 	rb := new(big.Int).Add(b1, big1)
 	ru := u1.Inc()
 	rb = simulateBigI128Overflow(rb)
-	return checkEqualI128(ru, rb)
+	return checkEqualI128("inc", ru, rb)
 }
 
 func (f fuzzI128) Dec() error {
@@ -949,7 +949,7 @@ func (f fuzzI128) Dec() error {
 	rb := new(big.Int).Sub(b1, big1)
 	rb = simulateBigI128Overflow(rb)
 	ru := u1.Dec()
-	return checkEqualI128(ru, rb)
+	return checkEqualI128("dec", ru, rb)
 }
 
 func (f fuzzI128) Add() error {
@@ -958,7 +958,7 @@ func (f fuzzI128) Add() error {
 	rb := new(big.Int).Add(b1, b2)
 	rb = simulateBigI128Overflow(rb)
 	ru := u1.Add(u2)
-	return checkEqualI128(ru, rb)
+	return checkEqualI128("add", ru, rb)
 }
 
 func (f fuzzI128) Add64() error {
@@ -967,7 +967,7 @@ func (f fuzzI128) Add64() error {
 	rb := new(big.Int).Add(b1, b2)
 	rb = simulateBigI128Overflow(rb)
 	ri := i1.Add64(i2)
-	return checkEqualI128(ri, rb)
+	return checkEqualI128("add64", ri, rb)
 }
 
 func (f fuzzI128) Sub() error {
@@ -976,7 +976,7 @@ func (f fuzzI128) Sub() error {
 	rb := new(big.Int).Sub(b1, b2)
 	rb = simulateBigI128Overflow(rb)
 	ri := i1.Sub(i2)
-	return checkEqualI128(ri, rb)
+	return checkEqualI128("sub", ri, rb)
 }
 
 func (f fuzzI128) Sub64() error {
@@ -985,7 +985,7 @@ func (f fuzzI128) Sub64() error {
 	rb := new(big.Int).Sub(b1, b2)
 	rb = simulateBigI128Overflow(rb)
 	ri := i1.Sub64(i2)
-	return checkEqualI128(ri, rb)
+	return checkEqualI128("sub64", ri, rb)
 }
 
 func (f fuzzI128) Mul() error {
@@ -994,7 +994,7 @@ func (f fuzzI128) Mul() error {
 	rb := new(big.Int).Mul(b1, b2)
 	rb = simulateBigI128Overflow(rb)
 	ru := u1.Mul(u2)
-	return checkEqualI128(ru, rb)
+	return checkEqualI128("mul", ru, rb)
 }
 
 func (f fuzzI128) Mul64() error {
@@ -1003,7 +1003,7 @@ func (f fuzzI128) Mul64() error {
 	rb := new(big.Int).Mul(b1, b2)
 	rb = simulateBigI128Overflow(rb)
 	ri := i1.Mul64(i2)
-	return checkEqualI128(ri, rb)
+	return checkEqualI128("mul64", ri, rb)
 }
 
 func (f fuzzI128) Quo() error {
@@ -1017,7 +1017,7 @@ func (f fuzzI128) Quo() error {
 	}
 	rb := new(big.Int).Quo(b1, b2)
 	ru := u1.Quo(u2)
-	return checkEqualI128(ru, rb)
+	return checkEqualI128("quo", ru, rb)
 }
 
 func (f fuzzI128) Quo64() error {
@@ -1033,7 +1033,7 @@ func (f fuzzI128) Quo64() error {
 	}
 	rb := new(big.Int).Quo(b1, b2)
 	ri := i1.Quo64(i2)
-	return checkEqualI128(ri, rb)
+	return checkEqualI128("quo64", ri, rb)
 }
 
 func (f fuzzI128) Rem() error {
@@ -1047,7 +1047,7 @@ func (f fuzzI128) Rem() error {
 	}
 	rb := new(big.Int).Rem(b1, b2)
 	ru := u1.Rem(u2)
-	return checkEqualI128(ru, rb)
+	return checkEqualI128("rem", ru, rb)
 }
 
 func (f fuzzI128) Rem64() error {
@@ -1063,7 +1063,7 @@ func (f fuzzI128) Rem64() error {
 	}
 	rb := new(big.Int).Rem(b1, b2)
 	ri := i1.Rem64(i2)
-	return checkEqualI128(ri, rb)
+	return checkEqualI128("rem64", ri, rb)
 }
 
 func (f fuzzI128) QuoRem() error {
@@ -1079,10 +1079,10 @@ func (f fuzzI128) QuoRem() error {
 	rbq := new(big.Int).Quo(b1, b2)
 	rbr := new(big.Int).Rem(b1, b2)
 	ruq, rur := u1.QuoRem(u2)
-	if err := checkEqualI128(ruq, rbq); err != nil {
+	if err := checkEqualI128("quo", ruq, rbq); err != nil {
 		return err
 	}
-	if err := checkEqualI128(rur, rbr); err != nil {
+	if err := checkEqualI128("rem", rur, rbr); err != nil {
 		return err
 	}
 	return nil
@@ -1103,10 +1103,10 @@ func (f fuzzI128) QuoRem64() error {
 	rbq := new(big.Int).Quo(b1, b2)
 	rbr := new(big.Int).Rem(b1, b2)
 	riq, rir := i1.QuoRem64(i2)
-	if err := checkEqualI128(riq, rbq); err != nil {
+	if err := checkEqualI128("quo64", riq, rbq); err != nil {
 		return err
 	}
-	if err := checkEqualI128(rir, rbr); err != nil {
+	if err := checkEqualI128("rem64", rir, rbr); err != nil {
 		return err
 	}
 	return nil
@@ -1206,7 +1206,7 @@ func (f fuzzI128) FromFloat64() error {
 
 	isZero := b1.Cmp(big0) == 0
 	if isZero {
-		return checkEqualI128(r1, b1)
+		return checkEqualI128("fromfloat64", r1, b1)
 	} else {
 		diffFloat := new(big.Float).Quo(diff.AsBigFloat(), bf1)
 		if diffFloat.Cmp(floatDiffLimit) > 0 {
@@ -1238,7 +1238,7 @@ func (f fuzzI128) Neg() error {
 	rb := simulateBigI128Overflow(new(big.Int).Neg(b1))
 
 	ru := u1.Neg()
-	return checkEqualI128(ru, rb)
+	return checkEqualI128("neg", ru, rb)
 }
 
 func (f fuzzI128) String() error {

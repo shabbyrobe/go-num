@@ -722,12 +722,29 @@ func (i I128) QuoRem(by I128) (q, r I128) {
 }
 
 func (i I128) QuoRem64(by int64) (q, r I128) {
-	var hi uint64
-	if by < 0 {
-		hi = maxUint64
+	ineg := i.hi&signBit != 0
+	if ineg {
+		i = i.Neg()
 	}
-	// FIXME: inline only the needed bits
-	return i.QuoRem(I128{hi: hi, lo: uint64(by)})
+	byneg := by < 0
+	if byneg {
+		by = -by
+	}
+
+	n := uint64(by)
+	if i.hi < n {
+		q.lo, r.lo = bits.Div64(i.hi, i.lo, n)
+	} else {
+		q.hi, r.lo = bits.Div64(0, i.hi, n)
+		q.lo, r.lo = bits.Div64(r.lo, i.lo, n)
+	}
+	if ineg != byneg {
+		q = q.Neg()
+	}
+	if ineg {
+		r = r.Neg()
+	}
+	return q, r
 }
 
 // Quo returns the quotient x/y for y != 0. If y == 0, a division-by-zero
@@ -753,19 +770,24 @@ func (i I128) Quo(by I128) (q I128) {
 }
 
 func (i I128) Quo64(by int64) (q I128) {
-	qSign := 1
-	if i.LessThan(zeroI128) {
-		qSign = -1
+	ineg := i.hi&signBit != 0
+	if ineg {
 		i = i.Neg()
 	}
-	if by < 0 {
-		qSign = -qSign
+	byneg := by < 0
+	if byneg {
 		by = -by
 	}
 
-	qu := i.AsU128().Quo64(uint64(by))
-	q = qu.AsI128()
-	if qSign < 0 {
+	n := uint64(by)
+	if i.hi < n {
+		q.lo, _ = bits.Div64(i.hi, i.lo, n)
+	} else {
+		var rlo uint64
+		q.hi, rlo = bits.Div64(0, i.hi, n)
+		q.lo, _ = bits.Div64(rlo, i.lo, n)
+	}
+	if ineg != byneg {
 		q = q.Neg()
 	}
 	return q
@@ -781,13 +803,26 @@ func (i I128) Rem(by I128) (r I128) {
 }
 
 func (i I128) Rem64(by int64) (r I128) {
-	var hi uint64
-	if by < 0 {
-		hi = maxUint64
+	ineg := i.hi&signBit != 0
+	if ineg {
+		i = i.Neg()
 	}
-	// FIXME: inline only the needed bits
-	_, r = i.QuoRem(I128{hi: hi, lo: uint64(by)})
+	if by < 0 {
+		by = -by
+	}
+
+	n := uint64(by)
+	if i.hi < n {
+		_, r.lo = bits.Div64(i.hi, i.lo, n)
+	} else {
+		_, r.lo = bits.Div64(0, i.hi, n)
+		_, r.lo = bits.Div64(r.lo, i.lo, n)
+	}
+	if ineg {
+		r = r.Neg()
+	}
 	return r
+
 }
 
 func (i I128) MarshalText() ([]byte, error) {

@@ -895,6 +895,14 @@ func BenchmarkI128Mul64(b *testing.B) {
 	}
 }
 
+func BenchmarkI128QuoRem64(b *testing.B) {
+	// FIXME: benchmark numbers of various sizes
+	v, by := i64(1234), int64(56)
+	for i := 0; i < b.N; i++ {
+		BenchI128Result, _ = v.QuoRem64(by)
+	}
+}
+
 func BenchmarkI128Sub(b *testing.B) {
 	sub := i64(1)
 	for _, iv := range []I128{i64(1), i128s("0x10000000000000000"), MaxI128} {

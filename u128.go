@@ -723,8 +723,13 @@ func (u U128) QuoRem(by U128) (q, r U128) {
 }
 
 func (u U128) QuoRem64(by uint64) (q, r U128) {
-	// FIXME: inline only the needed bits
-	return u.QuoRem(U128{lo: by})
+	if u.hi < by {
+		q.lo, r.lo = bits.Div64(u.hi, u.lo, by)
+	} else {
+		q.hi, r.lo = bits.Div64(0, u.hi, by)
+		q.lo, r.lo = bits.Div64(r.lo, u.lo, by)
+	}
+	return q, r
 }
 
 // Rem returns the remainder of x%y for y != 0. If y == 0, a division-by-zero
@@ -737,8 +742,12 @@ func (u U128) Rem(by U128) (r U128) {
 }
 
 func (u U128) Rem64(by uint64) (r U128) {
-	// FIXME: inline only the needed bits
-	_, r = u.QuoRem(U128{lo: by})
+	if u.hi < by {
+		_, r.lo = bits.Div64(u.hi, u.lo, by)
+	} else {
+		_, r.lo = bits.Div64(0, u.hi, by)
+		_, r.lo = bits.Div64(r.lo, u.lo, by)
+	}
 	return r
 }
 
