@@ -6,6 +6,8 @@ num: 128-bit signed and unsigned integers for Go
 Fastish `int128` (`num.I128`) and `uint128` (`num.U128`) 128-bit integer types
 for Go, providing the majority of methods found in `big.Int`.
 
+`num` requires Go 1.12 or greater.
+
 `I128` is a signed "two's complement" implementation that should behave the
 same way on overflow as `int64`.
 
@@ -15,9 +17,16 @@ new value rather than mutating the existing one.
 Simple usage:
 
     a := num.U128From64(1234)
-    b := a.Add(num.U128From64(5678))
+    b := num.U128From64(5678)
+    b := a.Add(a)
     fmt.Printf("%x", x)
 
+Most operations that operate on 2 128-bit numbers have a variant that accepts
+a 64-bit number:
+
+    a := num.U128From64(1234)
+    b := a.Add64(5678)
+    fmt.Printf("%x", x)
 
 Performance on x86-64/amd64 architectures is the focus. Performance
 improvements for other architectures will only be made if they are done without
@@ -29,11 +38,15 @@ should be exchanged for comments. Anything insufficiently explained is a bug.
 Testing
 -------
 
-**DISCLAIMER**: I have put a significant amount of effort into the testing of this
-library and the coverage is very good (especially with the fuzz tester). Though I
-have not found much in the way of bugs in a while, there is still some more testing
-work left to do. Please be very careful if you choose to use this for
-production workloads, and take note of the clause regarding warranty in the LICENSE file.
+**DISCLAIMER**: I have put a significant amount of effort into testing this
+library and the coverage is very broad and very deep. I have not found much in
+the way of bugs in a while, but without enough universes worth of time to test
+exhaustively, there is no guarantee I haven't missed some insane edge case
+(like the last one, which was tripped by this absolutely _bonkers_ behaviour in
+Go itself: https://github.com/golang/go/issues/29463).
+
+Please be very careful if you choose to use this for production workloads, and
+take note of the clause regarding warranty in the LICENSE file.
 
 The whole library is aggressively fuzzed (see `fuzz_test.go`). Configure the fuzzer
 by playing with the following flags to `go test`:
@@ -47,10 +60,10 @@ by playing with the following flags to `go test`:
     -num.fuzztype value
         Fuzz type (u128, i128) (can pass multiple)
 
-The fuzzer can do 10,000 iterations of all ops and all types per second. Most of this
-time is spent dealing with `big.Int`, which is used as a reference. The fuzzer is great
-at finding many kinds of bugs, but not all. Specifically, all of the "64-128 bit carry"
-scenarios need manually written tests. This work is ongoing.
+The fuzzer can do 10,000 iterations of all ops and all types per second. Most
+of this time is spent dealing with `big.Int`, which is used as a reference.
+Unless there is a flaw in the fuzzer itself, I believe it has picked all the
+low hanging fruit, and quite a bit of high-hanging fruit too.
 
 
 Silly benchmarks game

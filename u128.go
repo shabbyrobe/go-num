@@ -176,7 +176,7 @@ func RandU128(source RandSource) (out U128) {
 	return U128{hi: source.Uint64(), lo: source.Uint64()}
 }
 
-func (u U128) IsZero() bool { return u == zeroU128 }
+func (u U128) IsZero() bool { return u.lo == 0 && u.hi == 0 }
 
 // Raw returns access to the U128 as a pair of uint64s. See U128FromRaw() for
 // the counterpart.
@@ -184,7 +184,7 @@ func (u U128) Raw() (hi, lo uint64) { return u.hi, u.lo }
 
 func (u U128) String() string {
 	// FIXME: This is good enough for now, but not forever.
-	if u == zeroU128 {
+	if u.lo == 0 && u.hi == 0 {
 		return "0"
 	}
 	if u.hi == 0 {
@@ -309,56 +309,44 @@ func (u U128) MustUint64() uint64 {
 }
 
 func (u U128) Inc() (v U128) {
-	v.lo = u.lo + 1
-	v.hi = u.hi
-	if u.lo > v.lo {
-		v.hi++
-	}
+	var carry uint64
+	v.lo, carry = bits.Add64(u.lo, 1, 0)
+	v.hi = u.hi + carry
 	return v
 }
 
 func (u U128) Dec() (v U128) {
-	v.lo = u.lo - 1
-	v.hi = u.hi
-	if u.lo < v.lo {
-		v.hi--
-	}
+	var borrowed uint64
+	v.lo, borrowed = bits.Sub64(u.lo, 1, 0)
+	v.hi = u.hi - borrowed
 	return v
 }
 
 func (u U128) Add(n U128) (v U128) {
-	v.lo = u.lo + n.lo
-	v.hi = u.hi + n.hi
-	if u.lo > v.lo {
-		v.hi++
-	}
+	var carry uint64
+	v.lo, carry = bits.Add64(u.lo, n.lo, 0)
+	v.hi, _ = bits.Add64(u.hi, n.hi, carry)
 	return v
 }
 
 func (u U128) Add64(n uint64) (v U128) {
-	v.hi = u.hi
-	v.lo = u.lo + n
-	if u.lo > v.lo {
-		v.hi++
-	}
+	var carry uint64
+	v.lo, carry = bits.Add64(u.lo, n, 0)
+	v.hi = u.hi + carry
 	return v
 }
 
 func (u U128) Sub(n U128) (v U128) {
-	v.lo = u.lo - n.lo
-	v.hi = u.hi - n.hi
-	if u.lo < v.lo {
-		v.hi--
-	}
+	var borrowed uint64
+	v.lo, borrowed = bits.Sub64(u.lo, n.lo, 0)
+	v.hi, _ = bits.Sub64(u.hi, n.hi, borrowed)
 	return v
 }
 
 func (u U128) Sub64(n uint64) (v U128) {
-	v.hi = u.hi
-	v.lo = u.lo - n
-	if u.lo < v.lo {
-		v.hi--
-	}
+	var borrowed uint64
+	v.lo, borrowed = bits.Sub64(u.lo, n, 0)
+	v.hi = u.hi - borrowed
 	return v
 }
 
@@ -568,37 +556,15 @@ func (u U128) Rsh(n uint) (v U128) {
 	return v
 }
 
-func (u U128) Mul(n U128) (dest U128) {
-	// Adapted from Warren, Hacker's Delight, p. 132.
-	hl := u.hi*n.lo + u.lo*n.hi
-
-	dest.lo = u.lo * n.lo // lower 64 bits are easy
-
-	// break the multiplication into (x1 << 32 + x0)(y1 << 32 + y0)
-	// which is x1*y1 << 64 + (x0*y1 + x1*y0) << 32 + x0*y0
-	// so now we can do 64 bit multiplication and addition and
-	// shift the results into the right place
-	x0, x1 := u.lo&0x00000000ffffffff, u.lo>>32
-	y0, y1 := n.lo&0x00000000ffffffff, n.lo>>32
-	t := x1*y0 + (x0*y0)>>32
-	w1 := (t & 0x00000000ffffffff) + (x0 * y1)
-	dest.hi = (x1 * y1) + (t >> 32) + (w1 >> 32) + hl
-
-	return dest
+func (u U128) Mul(n U128) U128 {
+	hi, lo := bits.Mul64(u.lo, n.lo)
+	hi += u.hi*n.lo + u.lo*n.hi
+	return U128{hi, lo}
 }
 
 func (u U128) Mul64(n uint64) (dest U128) {
-	// NOTE: Copied from Mul() with n.hi removed. There may be a simpler
-	// way to do mul128x64?
-	hl := u.hi * n
-	dest.lo = u.lo * n
-
-	x0, x1 := u.lo&0x00000000ffffffff, u.lo>>32
-	y0, y1 := n&0x00000000ffffffff, n>>32
-	t := x1*y0 + (x0*y0)>>32
-	w1 := (t & 0x00000000ffffffff) + (x0 * y1)
-	dest.hi = (x1 * y1) + (t >> 32) + (w1 >> 32) + hl
-
+	dest.hi, dest.lo = bits.Mul64(u.lo, n)
+	dest.hi += u.hi * n
 	return dest
 }
 
@@ -757,8 +723,13 @@ func (u U128) QuoRem(by U128) (q, r U128) {
 }
 
 func (u U128) QuoRem64(by uint64) (q, r U128) {
-	// FIXME: inline only the needed bits
-	return u.QuoRem(U128{lo: by})
+	if u.hi < by {
+		q.lo, r.lo = bits.Div64(u.hi, u.lo, by)
+	} else {
+		q.hi, r.lo = bits.Div64(0, u.hi, by)
+		q.lo, r.lo = bits.Div64(r.lo, u.lo, by)
+	}
+	return q, r
 }
 
 // Rem returns the remainder of x%y for y != 0. If y == 0, a division-by-zero
@@ -771,8 +742,12 @@ func (u U128) Rem(by U128) (r U128) {
 }
 
 func (u U128) Rem64(by uint64) (r U128) {
-	// FIXME: inline only the needed bits
-	_, r = u.QuoRem(U128{lo: by})
+	if u.hi < by {
+		_, r.lo = bits.Div64(u.hi, u.lo, by)
+	} else {
+		_, r.lo = bits.Div64(0, u.hi, by)
+		_, r.lo = bits.Div64(r.lo, u.lo, by)
+	}
 	return r
 }
 

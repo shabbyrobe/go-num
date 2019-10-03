@@ -3,6 +3,7 @@ package num
 import (
 	"fmt"
 	"math/big"
+	"math/bits"
 )
 
 const (
@@ -214,7 +215,7 @@ func RandI128(source RandSource) (out I128) {
 	return I128{hi: source.Uint64() & maxInt64, lo: source.Uint64()}
 }
 
-func (i I128) IsZero() bool { return i == zeroI128 }
+func (i I128) IsZero() bool { return i.lo == 0 && i.hi == 0 }
 
 // Raw returns access to the I128 as a pair of uint64s. See I128FromRaw() for
 // the counterpart.
@@ -301,20 +302,18 @@ func (i I128) AsBigFloat() (b *big.Float) {
 }
 
 func (i I128) AsFloat64() float64 {
-	if i.hi == 0 && i.lo == 0 {
-		return 0
-	} else if i.hi&signBit != 0 {
-		if i.hi == maxUint64 {
-			return -float64((^i.lo) + 1)
+	if i.hi == 0 {
+		if i.lo == 0 {
+			return 0
 		} else {
-			return (-float64(^i.hi) * maxUint64Float) + -float64(^i.lo)
-		}
-	} else {
-		if i.hi == 0 {
 			return float64(i.lo)
-		} else {
-			return (float64(i.hi) * maxUint64Float) + float64(i.lo)
 		}
+	} else if i.hi == maxUint64 {
+		return -float64((^i.lo) + 1)
+	} else if i.hi&signBit == 0 {
+		return (float64(i.hi) * maxUint64Float) + float64(i.lo)
+	} else {
+		return (-float64(^i.hi) * maxUint64Float) + -float64(^i.lo)
 	}
 }
 
@@ -352,6 +351,34 @@ func (i I128) MustInt64() int64 {
 	panic(fmt.Errorf("I128 %v is not representable as an int64", i))
 }
 
+// AsUint64 truncates the I128 to fit in a uint64. Values outside the range will
+// over/underflow. Signedness is discarded, as with the following conversion:
+//
+//	var i int64 = -3
+//	var u = uint32(i)
+//	fmt.Printf("%x", u)
+//	// fffffffd
+//
+// See IsUint64() if you want to check before you convert.
+func (i I128) AsUint64() uint64 {
+	return i.lo
+}
+
+// AsUint64 truncates the I128 to fit in a uint64. Values outside the range will
+// over/underflow. See IsUint64() if you want to check before you convert.
+func (i I128) IsUint64() bool {
+	return i.hi == 0
+}
+
+// MustUint64 converts i to an unsigned 64-bit integer if the conversion would succeed,
+// and panics if it would not.
+func (i I128) MustUint64() uint64 {
+	if i.hi != 0 {
+		panic(fmt.Errorf("I128 %v is not representable as a uint64", i))
+	}
+	return i.lo
+}
+
 func (i I128) Sign() int {
 	if i == zeroI128 {
 		return 0
@@ -380,47 +407,41 @@ func (i I128) Dec() (v I128) {
 }
 
 func (i I128) Add(n I128) (v I128) {
-	v.lo = i.lo + n.lo
-	v.hi = i.hi + n.hi
-	if i.lo > v.lo {
-		v.hi++
-	}
+	var carry uint64
+	v.lo, carry = bits.Add64(i.lo, n.lo, 0)
+	v.hi, _ = bits.Add64(i.hi, n.hi, carry)
 	return v
 }
 
 func (i I128) Add64(n int64) (v I128) {
-	var hi uint64
+	var carry uint64
 	if n < 0 {
-		hi = maxUint64
-	}
-	v.lo = i.lo + uint64(n)
-	v.hi = i.hi + hi
-	if i.lo > v.lo {
-		v.hi++
+		v.lo, carry = bits.Add64(i.lo, uint64(n), 0)
+		v.hi = i.hi + maxUint64 + carry
+	} else {
+		v.lo, carry = bits.Add64(i.lo, uint64(n), 0)
+		v.hi = i.hi + carry
 	}
 	return v
 }
 
-func (i I128) Sub(n I128) (out I128) {
-	out.lo = i.lo - n.lo
-	out.hi = i.hi - n.hi
-	if i.lo < out.lo {
-		out.hi--
-	}
-	return out
+func (i I128) Sub(n I128) (v I128) {
+	var borrowed uint64
+	v.lo, borrowed = bits.Sub64(i.lo, n.lo, 0)
+	v.hi, _ = bits.Sub64(i.hi, n.hi, borrowed)
+	return v
 }
 
-func (i I128) Sub64(n int64) (out I128) {
-	var hi uint64
+func (i I128) Sub64(n int64) (v I128) {
+	var borrowed uint64
 	if n < 0 {
-		hi = maxUint64
+		v.lo, borrowed = bits.Sub64(i.lo, uint64(n), 0)
+		v.hi = i.hi - maxUint64 - borrowed
+	} else {
+		v.lo, borrowed = bits.Sub64(i.lo, uint64(n), 0)
+		v.hi = i.hi - borrowed
 	}
-	out.lo = i.lo - uint64(n)
-	out.hi = i.hi - hi
-	if i.lo < out.lo {
-		out.hi--
-	}
-	return out
+	return v
 }
 
 func (i I128) Neg() (v I128) {
@@ -645,48 +666,20 @@ func (i I128) LessOrEqualTo64(n int64) bool {
 // Overflow should wrap around, as per the Go spec.
 //
 func (i I128) Mul(n I128) (dest I128) {
-	// Unfortunately, this is slightly too complex for Go 1.11 to inline.
-
-	// Adapted from Warren, Hacker's Delight, p. 132.
-	hl := i.hi*n.lo + i.lo*n.hi
-
-	dest.lo = i.lo * n.lo // lower 64 bits
-
-	// break the multiplication into (x1 << 32 + x0)(y1 << 32 + y0)
-	// which is x1*y1 << 64 + (x0*y1 + x1*y0) << 32 + x0*y0
-	// so now we can do 64 bit multiplication and addition and
-	// shift the results into the right place
-	x0, x1 := i.lo&0x00000000ffffffff, i.lo>>32
-	y0, y1 := n.lo&0x00000000ffffffff, n.lo>>32
-	t := x1*y0 + (x0*y0)>>32
-	w1 := (t & 0x00000000ffffffff) + (x0 * y1)
-	dest.hi = (x1 * y1) + (t >> 32) + (w1 >> 32) + hl
-
-	return dest
+	hi, lo := bits.Mul64(i.lo, n.lo)
+	hi += i.hi*n.lo + i.lo*n.hi
+	return I128{hi, lo}
 }
 
-func (i I128) Mul64(n64 int64) (dest I128) {
-	var n = I128{lo: uint64(n64)}
-	if n64 < 0 {
-		n.hi = maxUint64
+func (i I128) Mul64(n int64) I128 {
+	nlo := uint64(n)
+	var nhi uint64
+	if n < 0 {
+		nhi = maxUint64
 	}
-
-	// Adapted from Warren, Hacker's Delight, p. 132.
-	hl := i.hi*n.lo + i.lo*n.hi
-
-	dest.lo = i.lo * n.lo // lower 64 bits
-
-	// break the multiplication into (x1 << 32 + x0)(y1 << 32 + y0)
-	// which is x1*y1 << 64 + (x0*y1 + x1*y0) << 32 + x0*y0
-	// so now we can do 64 bit multiplication and addition and
-	// shift the results into the right place
-	x0, x1 := i.lo&0x00000000ffffffff, i.lo>>32
-	y0, y1 := n.lo&0x00000000ffffffff, n.lo>>32
-	t := x1*y0 + (x0*y0)>>32
-	w1 := (t & 0x00000000ffffffff) + (x0 * y1)
-	dest.hi = (x1 * y1) + (t >> 32) + (w1 >> 32) + hl
-
-	return dest
+	hi, lo := bits.Mul64(i.lo, nlo)
+	hi += i.hi*nlo + i.lo*nhi
+	return I128{hi, lo}
 }
 
 // QuoRem returns the quotient q and remainder r for y != 0. If y == 0, a
@@ -729,12 +722,29 @@ func (i I128) QuoRem(by I128) (q, r I128) {
 }
 
 func (i I128) QuoRem64(by int64) (q, r I128) {
-	var hi uint64
-	if by < 0 {
-		hi = maxUint64
+	ineg := i.hi&signBit != 0
+	if ineg {
+		i = i.Neg()
 	}
-	// FIXME: inline only the needed bits
-	return i.QuoRem(I128{hi: hi, lo: uint64(by)})
+	byneg := by < 0
+	if byneg {
+		by = -by
+	}
+
+	n := uint64(by)
+	if i.hi < n {
+		q.lo, r.lo = bits.Div64(i.hi, i.lo, n)
+	} else {
+		q.hi, r.lo = bits.Div64(0, i.hi, n)
+		q.lo, r.lo = bits.Div64(r.lo, i.lo, n)
+	}
+	if ineg != byneg {
+		q = q.Neg()
+	}
+	if ineg {
+		r = r.Neg()
+	}
+	return q, r
 }
 
 // Quo returns the quotient x/y for y != 0. If y == 0, a division-by-zero
@@ -760,19 +770,24 @@ func (i I128) Quo(by I128) (q I128) {
 }
 
 func (i I128) Quo64(by int64) (q I128) {
-	qSign := 1
-	if i.LessThan(zeroI128) {
-		qSign = -1
+	ineg := i.hi&signBit != 0
+	if ineg {
 		i = i.Neg()
 	}
-	if by < 0 {
-		qSign = -qSign
+	byneg := by < 0
+	if byneg {
 		by = -by
 	}
 
-	qu := i.AsU128().Quo64(uint64(by))
-	q = qu.AsI128()
-	if qSign < 0 {
+	n := uint64(by)
+	if i.hi < n {
+		q.lo, _ = bits.Div64(i.hi, i.lo, n)
+	} else {
+		var rlo uint64
+		q.hi, rlo = bits.Div64(0, i.hi, n)
+		q.lo, _ = bits.Div64(rlo, i.lo, n)
+	}
+	if ineg != byneg {
 		q = q.Neg()
 	}
 	return q
@@ -788,13 +803,26 @@ func (i I128) Rem(by I128) (r I128) {
 }
 
 func (i I128) Rem64(by int64) (r I128) {
-	var hi uint64
-	if by < 0 {
-		hi = maxUint64
+	ineg := i.hi&signBit != 0
+	if ineg {
+		i = i.Neg()
 	}
-	// FIXME: inline only the needed bits
-	_, r = i.QuoRem(I128{hi: hi, lo: uint64(by)})
+	if by < 0 {
+		by = -by
+	}
+
+	n := uint64(by)
+	if i.hi < n {
+		_, r.lo = bits.Div64(i.hi, i.lo, n)
+	} else {
+		_, r.lo = bits.Div64(0, i.hi, n)
+		_, r.lo = bits.Div64(r.lo, i.lo, n)
+	}
+	if ineg {
+		r = r.Neg()
+	}
 	return r
+
 }
 
 func (i I128) MarshalText() ([]byte, error) {

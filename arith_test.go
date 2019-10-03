@@ -31,33 +31,11 @@ func TestMul128To256(t *testing.T) {
 	}
 }
 
-func TestMul64To128(t *testing.T) {
-	tt := assert.WrapTB(t)
-
-	for i := 0; i < 50000; i++ {
-		u1, u2 := globalRNG.Uint64(), globalRNG.Uint64()
-		b1, b2 := new(big.Int).SetUint64(u1), new(big.Int).SetUint64(u2)
-		rhi, rlo := mul64to128(u1, u2)
-
-		rb := new(big.Int).Set(b1)
-		rb.Mul(rb, b2)
-
-		rc := U128{hi: rhi, lo: rlo}.AsBigInt()
-		tt.MustEqual(rb.String(), rc.String(), "failed at index %d", i)
-	}
-}
-
 var BenchU128In1, BenchU128In2 = U128{hi: 1234, lo: 5678}, U128{hi: 9123, lo: 5678}
 
 func BenchmarkMul128to256(b *testing.B) {
 	// fmt.Println(asmtest(math.MaxUint64, math.MaxUint64))
 	for i := 0; i < b.N; i++ {
 		BenchUint64Result, _, _, _ = mul128to256(BenchU128In1.hi, BenchU128In1.lo, BenchU128In2.hi, BenchU128In2.lo)
-	}
-}
-
-func BenchmarkMul64To128(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		BenchUint64Result, _ = mul64to128(BenchU128In1.hi, BenchU128In1.lo)
 	}
 }

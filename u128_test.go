@@ -116,6 +116,23 @@ func TestU128Add(t *testing.T) {
 	}
 }
 
+func TestU128Add64(t *testing.T) {
+	for _, tc := range []struct {
+		a U128
+		b uint64
+		c U128
+	}{
+		{u64(1), 2, u64(3)},
+		{u64(10), 3, u64(13)},
+		{MaxU128, 1, u64(0)}, // Overflow wraps
+	} {
+		t.Run(fmt.Sprintf("%s+%d=%s", tc.a, tc.b, tc.c), func(t *testing.T) {
+			tt := assert.WrapTB(t)
+			tt.MustAssert(tc.c.Equal(tc.a.Add64(tc.b)))
+		})
+	}
+}
+
 func TestU128AsBigInt(t *testing.T) {
 	for idx, tc := range []struct {
 		a U128
@@ -614,24 +631,6 @@ func TestU128Scan(t *testing.T) {
 	}
 }
 
-func BenchmarkU128Add(b *testing.B) {
-	for idx, tc := range []struct {
-		a, b U128
-		name string
-	}{
-		{zeroU128, zeroU128, "0+0"},
-		{MaxU128, MaxU128, "max+max"},
-		{u128s("0x7FFFFFFFFFFFFFFF"), u128s("0x7FFFFFFFFFFFFFFF"), "lo-only"},
-		{u128s("0xFFFFFFFFFFFFFFFF"), u128s("0x7FFFFFFFFFFFFFFF"), "carry"},
-	} {
-		b.Run(fmt.Sprintf("%d/%s", idx, tc.name), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				BenchU128Result = tc.a.Add(tc.b)
-			}
-		})
-	}
-}
-
 func TestSetBit(t *testing.T) {
 	for i := 0; i < 128; i++ {
 		t.Run(fmt.Sprintf("setcheck/%d", i), func(t *testing.T) {
@@ -680,6 +679,42 @@ func TestSetBit(t *testing.T) {
 			}()
 			var u U128
 			u.SetBit(tc.i, tc.b)
+		})
+	}
+}
+
+func BenchmarkU128Add(b *testing.B) {
+	for idx, tc := range []struct {
+		a, b U128
+		name string
+	}{
+		{zeroU128, zeroU128, "0+0"},
+		{MaxU128, MaxU128, "max+max"},
+		{u128s("0x7FFFFFFFFFFFFFFF"), u128s("0x7FFFFFFFFFFFFFFF"), "lo-only"},
+		{u128s("0xFFFFFFFFFFFFFFFF"), u128s("0x7FFFFFFFFFFFFFFF"), "carry"},
+	} {
+		b.Run(fmt.Sprintf("%d/%s", idx, tc.name), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				BenchU128Result = tc.a.Add(tc.b)
+			}
+		})
+	}
+}
+
+func BenchmarkU128Add64(b *testing.B) {
+	for idx, tc := range []struct {
+		a    U128
+		b    uint64
+		name string
+	}{
+		{zeroU128, 0, "0+0"},
+		{MaxU128, maxUint64, "max+max"},
+		{u128s("0xFFFFFFFFFFFFFFFF"), 1, "carry"},
+	} {
+		b.Run(fmt.Sprintf("%d/%s", idx, tc.name), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				BenchU128Result = tc.a.Add64(tc.b)
+			}
 		})
 	}
 }
@@ -781,6 +816,23 @@ func BenchmarkU128GreaterOrEqualTo(b *testing.B) {
 	}
 }
 
+func BenchmarkU128Inc(b *testing.B) {
+	for idx, tc := range []struct {
+		name string
+		a    U128
+	}{
+		{"0", zeroU128},
+		{"max", MaxU128},
+		{"carry", u64(maxUint64)},
+	} {
+		b.Run(fmt.Sprintf("%d/%s", idx, tc.name), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				BenchU128Result = tc.a.Inc()
+			}
+		})
+	}
+}
+
 func BenchmarkU128IntoBigInt(b *testing.B) {
 	u := U128{lo: 0xFEDCBA9876543210, hi: 0xFEDCBA9876543210}
 	BenchBigIntResult = new(big.Int)
@@ -840,6 +892,14 @@ func BenchmarkU128Mul(b *testing.B) {
 	}
 }
 
+func BenchmarkU128Mul64(b *testing.B) {
+	u := U128From64(maxUint64)
+	lim := uint64(b.N)
+	for i := uint64(0); i < lim; i++ {
+		BenchU128Result = u.Mul64(i)
+	}
+}
+
 var benchQuoCases = []struct {
 	name     string
 	dividend U128
@@ -885,6 +945,13 @@ func BenchmarkU128QuoRem(b *testing.B) {
 }
 
 func BenchmarkU128QuoRemTZ(b *testing.B) {
+	type tc struct {
+		zeros  int
+		useRem int
+		da, db U128
+	}
+	var cases []tc
+
 	// If there's a big jump in speed from one of these cases to the next, it
 	// could be indicative that the algorithm selection spill point
 	// (divAlgoLeading0Spill) needs to change.
@@ -893,62 +960,93 @@ func BenchmarkU128QuoRemTZ(b *testing.B) {
 	// likely platform and possibly CPU specific.
 	for zeros := 0; zeros < 31; zeros++ {
 		for useRem := 0; useRem < 2; useRem++ {
-			b.Run(fmt.Sprintf("z=%d/rem=%v", zeros, useRem == 1), func(b *testing.B) {
-				bs := "0b"
-				for j := 0; j < 128; j++ {
-					if j >= zeros {
-						bs += "1"
-					} else {
-						bs += "0"
-					}
+			bs := "0b"
+			for j := 0; j < 128; j++ {
+				if j >= zeros {
+					bs += "1"
+				} else {
+					bs += "0"
 				}
+			}
 
-				da := u128s("0x98765432109876543210987654321098")
-				db := u128s(bs)
-
-				b.ResetTimer()
-				for i := 0; i < b.N; i++ {
-					if useRem == 1 {
-						BenchU128Result, _ = da.QuoRem(db)
-					} else {
-						BenchU128Result = da.Quo(db)
-					}
-				}
+			da := u128s("0x98765432109876543210987654321098")
+			db := u128s(bs)
+			cases = append(cases, tc{
+				zeros:  zeros,
+				useRem: useRem,
+				da:     da,
+				db:     db,
 			})
 		}
+	}
+
+	for _, tc := range cases {
+		b.Run(fmt.Sprintf("z=%d/rem=%v", tc.zeros, tc.useRem == 1), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				if tc.useRem == 1 {
+					BenchU128Result, _ = tc.da.QuoRem(tc.db)
+				} else {
+					BenchU128Result = tc.da.Quo(tc.db)
+				}
+			}
+		})
+	}
+}
+
+func BenchmarkU128QuoRem64(b *testing.B) {
+	// FIXME: benchmark numbers of various sizes
+	u, v := u64(1234), uint64(56)
+	for i := 0; i < b.N; i++ {
+		BenchU128Result, _ = u.QuoRem64(v)
 	}
 }
 
 func BenchmarkU128QuoRem64TZ(b *testing.B) {
+	type tc struct {
+		zeros  int
+		useRem int
+		da     U128
+		db     uint64
+	}
+	var cases []tc
+
 	for zeros := 0; zeros < 31; zeros++ {
 		for useRem := 0; useRem < 2; useRem++ {
-			b.Run(fmt.Sprintf("z=%d/rem=%v", zeros, useRem == 1), func(b *testing.B) {
-				bs := "0b"
-				for j := 0; j < 64; j++ {
-					if j >= zeros {
-						bs += "1"
-					} else {
-						bs += "0"
-					}
+			bs := "0b"
+			for j := 0; j < 64; j++ {
+				if j >= zeros {
+					bs += "1"
+				} else {
+					bs += "0"
 				}
+			}
 
-				da := u128s("0x98765432109876543210987654321098")
-				db128 := u128s(bs)
-				if !db128.IsUint64() {
-					panic("oh dear!")
-				}
-				db := db128.AsUint64()
+			da := u128s("0x98765432109876543210987654321098")
+			db128 := u128s(bs)
+			if !db128.IsUint64() {
+				panic("oh dear!")
+			}
+			db := db128.AsUint64()
 
-				b.ResetTimer()
-				for i := 0; i < b.N; i++ {
-					if useRem == 1 {
-						BenchU128Result, _ = da.QuoRem64(db)
-					} else {
-						BenchU128Result = da.Quo64(db)
-					}
-				}
+			cases = append(cases, tc{
+				zeros:  zeros,
+				useRem: useRem,
+				da:     da,
+				db:     db,
 			})
 		}
+	}
+
+	for _, tc := range cases {
+		b.Run(fmt.Sprintf("z=%d/rem=%v", tc.zeros, tc.useRem == 1), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				if tc.useRem == 1 {
+					BenchU128Result, _ = tc.da.QuoRem64(tc.db)
+				} else {
+					BenchU128Result = tc.da.Quo64(tc.db)
+				}
+			}
+		})
 	}
 }
 
@@ -963,6 +1061,42 @@ func BenchmarkU128String(b *testing.B) {
 		b.Run(fmt.Sprintf("%x", bi.AsBigInt()), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				BenchStringResult = bi.String()
+			}
+		})
+	}
+}
+
+func BenchmarkU128Sub(b *testing.B) {
+	for idx, tc := range []struct {
+		name string
+		a, b U128
+	}{
+		{"0+0", zeroU128, zeroU128},
+		{"0-max", zeroU128, MaxU128},
+		{"lo-only", u128s("0x7FFFFFFFFFFFFFFF"), u128s("0x7FFFFFFFFFFFFFFF")},
+		{"carry", MaxU128, u64(maxUint64).Add64(1)},
+	} {
+		b.Run(fmt.Sprintf("%d/%s", idx, tc.name), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				BenchU128Result = tc.a.Sub(tc.b)
+			}
+		})
+	}
+}
+
+func BenchmarkU128Sub64(b *testing.B) {
+	for idx, tc := range []struct {
+		a    U128
+		b    uint64
+		name string
+	}{
+		{zeroU128, 0, "0+0"},
+		{MaxU128, maxUint64, "max+max"},
+		{u128s("0xFFFFFFFFFFFFFFFF"), 1, "carry"},
+	} {
+		b.Run(fmt.Sprintf("%d/%s", idx, tc.name), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				BenchU128Result = tc.a.Sub64(tc.b)
 			}
 		})
 	}
