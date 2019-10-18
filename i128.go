@@ -500,11 +500,11 @@ func (i I128) AbsU128() U128 {
 	return U128{hi: i.hi, lo: i.lo}
 }
 
-// Cmp compares u to n and returns:
+// Cmp compares i to n and returns:
 //
-//	< 0 if x <  y
-//	  0 if x == y
-//	> 0 if x >  y
+//	< 0 if i <  n
+//	  0 if i == n
+//	> 0 if i >  n
 //
 // The specific value returned by Cmp is undefined, but it is guaranteed to
 // satisfy the above constraints.
@@ -522,6 +522,15 @@ func (i I128) Cmp(n I128) int {
 	return -1
 }
 
+// Cmp64 compares 'i' to 64-bit int 'n' and returns:
+//
+//	< 0 if i <  n
+//	  0 if i == n
+//	> 0 if i >  n
+//
+// The specific value returned by Cmp is undefined, but it is guaranteed to
+// satisfy the above constraints.
+//
 func (i I128) Cmp64(n int64) int {
 	var nhi uint64
 	var nlo = uint64(n)

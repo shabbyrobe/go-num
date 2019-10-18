@@ -350,11 +350,11 @@ func (u U128) Sub64(n uint64) (v U128) {
 	return v
 }
 
-// Cmp compares u to n and returns:
+// Cmp compares 'u' to 'n' and returns:
 //
-//	< 0 if x <  y
-//	  0 if x == y
-//	> 0 if x >  y
+//	< 0 if u <  n
+//	  0 if u == n
+//	> 0 if u >  n
 //
 // The specific value returned by Cmp is undefined, but it is guaranteed to
 // satisfy the above constraints.
