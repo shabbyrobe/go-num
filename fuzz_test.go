@@ -254,6 +254,7 @@ func TestFuzz(t *testing.T) {
 	}
 
 	var failures = make([][]int, len(fuzzTypes))
+	var failCount = 0
 
 	for implIdx, fuzzImpl := range fuzzTypes {
 		failures[implIdx] = make([]int, len(runFuzzOps))
@@ -357,13 +358,14 @@ func TestFuzz(t *testing.T) {
 
 				if err != nil {
 					failures[implIdx][opIdx]++
+					failCount++
 					t.Logf("impl %s: %s\n%s\n\n", fuzzImpl.Name(), op.Print(source.Operands()...), err)
 				}
 			}
 		}
 	}
 
-	if len(failures) > 0 {
+	if failCount > 0 {
 		t.Logf("  ------------- UH OH! ------------")
 		t.Logf("")
 		t.Logf(`         _.-^^---....,,--          `)
