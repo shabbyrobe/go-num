@@ -144,8 +144,8 @@ also owes a large debt to Hacker's Delight, and is licensed under a BSD license.
 The easier routines, the structure, the tester, etc are written by me (Blake
 Williams) as they're obvious enough for that to be possible, but if it wasn't
 for the contributions of the giants that came before, you'd be able to
-bit-shift, add, negate, convert, and swear about being unable to multiply or
-divide.
+bit-shift, add, negate, convert, and swear about being unable to multiply quickly
+or divide at all.
 
 Some credit should also go to "ridiculousfish" for their
 [libdivide](https://github.com/ridiculousfish/libdivide/) library. There is
