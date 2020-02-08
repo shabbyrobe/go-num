@@ -2,6 +2,7 @@ num: 128-bit signed and unsigned integers for Go
 ================================================
 
 [![GoDoc](https://godoc.org/github.com/shabbyrobe/go-num?status.svg)](https://godoc.org/github.com/shabbyrobe/go-num)
+![Go](https://github.com/shabbyrobe/go-num/workflows/Go/badge.svg)
 
 Fastish `int128` (`num.I128`) and `uint128` (`num.U128`) 128-bit integer types
 for Go, providing the majority of methods found in `big.Int`.
