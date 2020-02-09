@@ -415,11 +415,10 @@ func (i I128) Add(n I128) (v I128) {
 
 func (i I128) Add64(n int64) (v I128) {
 	var carry uint64
+	v.lo, carry = bits.Add64(i.lo, uint64(n), 0)
 	if n < 0 {
-		v.lo, carry = bits.Add64(i.lo, uint64(n), 0)
 		v.hi = i.hi + maxUint64 + carry
 	} else {
-		v.lo, carry = bits.Add64(i.lo, uint64(n), 0)
 		v.hi = i.hi + carry
 	}
 	return v
@@ -831,7 +830,6 @@ func (i I128) Rem64(by int64) (r I128) {
 		r = r.Neg()
 	}
 	return r
-
 }
 
 func (i I128) MarshalText() ([]byte, error) {

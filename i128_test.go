@@ -120,6 +120,23 @@ func TestI128Add(t *testing.T) {
 	}
 }
 
+func TestI128Add64(t *testing.T) {
+	for _, tc := range []struct {
+		a I128
+		b int64
+		c I128
+	}{
+		{i64(1), 2, i64(3)},
+		{i64(10), 3, i64(13)},
+		{MaxI128, 1, MinI128}, // Overflow wraps
+	} {
+		t.Run(fmt.Sprintf("%s+%d=%s", tc.a, tc.b, tc.c), func(t *testing.T) {
+			tt := assert.WrapTB(t)
+			tt.MustAssert(tc.c.Equal(tc.a.Add64(tc.b)))
+		})
+	}
+}
+
 func TestI128AsBigIntAndIntoBigInt(t *testing.T) {
 	for idx, tc := range []struct {
 		a I128
