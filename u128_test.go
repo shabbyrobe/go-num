@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/shabbyrobe/golib/assert"
+	"github.com/shabbyrobe/go-num/internal/assert"
 )
 
 var u64 = U128From64

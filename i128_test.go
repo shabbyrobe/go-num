@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/shabbyrobe/golib/assert"
+	"github.com/shabbyrobe/go-num/internal/assert"
 )
 
 var i64 = I128From64
