@@ -23,8 +23,8 @@ func TestNoDeps(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !bytes.Equal(fix, bts) {
-			t.Fatal("go.mod contains unexpected content")
+		if !bytes.Equal(fixNL(fix), fixNL(bts)) {
+			t.Fatal("go.mod contains unexpected content:\n" + string(bts))
 		}
 	}
 
@@ -37,4 +37,10 @@ func TestNoDeps(t *testing.T) {
 			t.Fatal("go.sum contains unexpected content")
 		}
 	}
+}
+
+func fixNL(d []byte) []byte {
+	d = bytes.Replace(d, []byte{13, 10}, []byte{10}, -1)
+	d = bytes.Replace(d, []byte{13}, []byte{10}, -1)
+	return d
 }
