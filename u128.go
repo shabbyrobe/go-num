@@ -742,6 +742,15 @@ func (u U128) Rem(by U128) (r U128) {
 }
 
 func (u U128) Rem64(by uint64) (r U128) {
+	// XXX: bits.Rem64 (added in 1.14) shows no noticeable improvement on my 8th-gen i7
+	// (though it sounds like it isn't necessarily meant to):
+	// https://github.com/golang/go/issues/28970
+	// if u.hi < by {
+	//     _, r.lo = bits.Rem64(u.hi, u.lo, by)
+	// } else {
+	//     _, r.lo = bits.Rem64(bits.Rem64(0, u.hi, by), u.lo, by)
+	// }
+
 	if u.hi < by {
 		_, r.lo = bits.Div64(u.hi, u.lo, by)
 	} else {

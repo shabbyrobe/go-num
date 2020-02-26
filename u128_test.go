@@ -1050,6 +1050,22 @@ func BenchmarkU128QuoRem64TZ(b *testing.B) {
 	}
 }
 
+func BenchmarkU128Rem64(b *testing.B) {
+	b.Run("fast", func(b *testing.B) {
+		u, v := U128{1, 0}, uint64(56) // u.hi < v
+		for i := 0; i < b.N; i++ {
+			BenchU128Result = u.Rem64(v)
+		}
+	})
+
+	b.Run("slow", func(b *testing.B) {
+		u, v := U128{100, 0}, uint64(56) // u.hi >= v
+		for i := 0; i < b.N; i++ {
+			BenchU128Result = u.Rem64(v)
+		}
+	})
+}
+
 func BenchmarkU128String(b *testing.B) {
 	for _, bi := range []U128{
 		u128s("0"),
