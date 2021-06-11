@@ -619,48 +619,13 @@ func (u U128) Quo(by U128) (q U128) {
 }
 
 func (u U128) Quo64(by uint64) (q U128) {
-	if by == 0 {
-		panic("u128: division by zero")
-	}
-
-	if u.hi == 0 {
-		q.lo = u.lo / by
-		return q
-	}
-
-	byLoLeading0 := uint(bits.LeadingZeros64(by))
-	byLeading0 := byLoLeading0 + 64
-
-	if byLeading0 == 127 {
-		return u
-	}
-
-	byTrailing0 := uint(bits.TrailingZeros64(by))
-	if byLeading0+byTrailing0 == 127 {
-		return u.Rsh(byTrailing0)
-	}
-
-	if cmp := u.Cmp64(by); cmp < 0 {
-		return q // it's 100% remainder
-	} else if cmp == 0 {
-		q.lo = 1 // dividend and divisor are the same
-		return q
-	}
-
-	uLeading0 := u.LeadingZeros()
-	if byLeading0-uLeading0 > divAlgoLeading0Spill {
-		if u.hi < by {
-			q.lo = quo128by64(u.hi, u.lo, by, byLoLeading0)
-
-		} else {
-			q.hi = u.hi / by
-			q.lo = quo128by64(u.hi%by, u.lo, by, byLoLeading0)
-		}
-		return q
-
+	if u.hi < by {
+		q.lo, _ = bits.Div64(u.hi, u.lo, by)
 	} else {
-		return quo128bin(u, U128{lo: by}, uLeading0, byLeading0)
+		q.hi = u.hi / by
+		q.lo, _ = bits.Div64(u.hi%by, u.lo, by)
 	}
+	return q
 }
 
 // QuoRem returns the quotient q and remainder r for y != 0. If y == 0, a
