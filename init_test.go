@@ -23,6 +23,8 @@ var (
 )
 
 func TestMain(m *testing.M) {
+	testing.Init()
+
 	var ops StringList
 	var types StringList
 
