@@ -733,6 +733,7 @@ func (u U128) ReverseBytes() U128 {
 	return U128{hi: bits.ReverseBytes64(u.lo), lo: bits.ReverseBytes64(u.hi)}
 }
 
+// To rotate u right by k bits, call u.RotateLeft(-k).
 func (u U128) RotateLeft(k int) U128 {
 	s := uint(k) & (127)
 	if s > 64 {
