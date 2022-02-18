@@ -1,3 +1,3 @@
 module github.com/shabbyrobe/go-num
 
-go 1.14
+go 1.15
