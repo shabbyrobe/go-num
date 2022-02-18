@@ -1193,3 +1193,11 @@ func BenchmarkU128Sub64(b *testing.B) {
 		})
 	}
 }
+
+func BenchmarkU128MustU128FromBigEndian(b *testing.B) {
+	var bts = make([]byte, 16)
+	rand.Read(bts)
+	for i := 0; i < b.N; i++ {
+		BenchU128Result = MustU128FromBigEndian(bts)
+	}
+}

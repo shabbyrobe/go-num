@@ -930,3 +930,11 @@ func BenchmarkI128Sub(b *testing.B) {
 		})
 	}
 }
+
+func BenchmarkI128MustI128FromBigEndian(b *testing.B) {
+	var bts = make([]byte, 16)
+	rand.Read(bts)
+	for i := 0; i < b.N; i++ {
+		BenchI128Result = MustU128FromBigEndian(bts).AsI128()
+	}
+}

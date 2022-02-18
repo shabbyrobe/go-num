@@ -1,6 +1,7 @@
 package num
 
 import (
+	"bytes"
 	"fmt"
 	"math"
 	"math/big"
@@ -31,6 +32,8 @@ const (
 	fuzzAnd64              fuzzOp = "and64"
 	fuzzAndNot             fuzzOp = "andnot"
 	fuzzAsFloat64          fuzzOp = "asfloat64"
+	fuzzBinBE              fuzzOp = "binbe"
+	fuzzBinLE              fuzzOp = "binle"
 	fuzzBit                fuzzOp = "bit"
 	fuzzBitLen             fuzzOp = "bitlen"
 	fuzzCmp                fuzzOp = "cmp"
@@ -98,6 +101,8 @@ var allFuzzOps = []fuzzOp{
 	fuzzAnd64,
 	fuzzAndNot,
 	fuzzAsFloat64,
+	fuzzBinBE,
+	fuzzBinLE,
 	fuzzBit,
 	fuzzBitLen,
 	fuzzCmp,
@@ -149,6 +154,8 @@ type fuzzOps interface {
 	And64() error
 	AndNot() error
 	AsFloat64() error
+	BinBE() error
+	BinLE() error
 	Bit() error
 	BitLen() error
 	Cmp() error
@@ -206,6 +213,13 @@ func checkEqualBool(u bool, b bool) error {
 func checkEqualU128(n string, u U128, b *big.Int) error {
 	if u.AsBigInt().Cmp(b) != 0 {
 		return fmt.Errorf("%s: u128(%s) != big(%s)", n, u.String(), b.String())
+	}
+	return nil
+}
+
+func checkEqualBytes(n string, b1 []byte, b2 []byte) error {
+	if !bytes.Equal(b1, b2) {
+		return fmt.Errorf("%s: bytes(%v) != bytes(%v)", n, b1, b2)
 	}
 	return nil
 }
@@ -296,6 +310,10 @@ func TestFuzz(t *testing.T) {
 					err = fuzzImpl.AndNot()
 				case fuzzAsFloat64:
 					err = fuzzImpl.AsFloat64()
+				case fuzzBinBE:
+					err = fuzzImpl.BinBE()
+				case fuzzBinLE:
+					err = fuzzImpl.BinLE()
 				case fuzzBit:
 					err = fuzzImpl.Bit()
 				case fuzzBitLen:
@@ -426,6 +444,8 @@ func (op fuzzOp) Print(operands ...*big.Int) string {
 	switch op {
 	case fuzzAsFloat64,
 		fuzzFromFloat64,
+		fuzzBinBE,
+		fuzzBinLE,
 		fuzzBitLen,
 		fuzzString:
 		s := strings.TrimRight(op.String(), "()")
@@ -879,6 +899,53 @@ func (f fuzzU128) Neg() error {
 	return nil // nothing to do here
 }
 
+func (f fuzzU128) BinBE() error {
+	b1 := f.source.BigU128()
+	u1 := accU128FromBigInt(b1)
+
+	b1bts := make([]byte, 16)
+	b1.FillBytes(b1bts)
+
+	u1bts := make([]byte, 16)
+	u1.PutBigEndian(u1bts)
+
+	if err := checkEqualBytes("binbe", b1bts, u1bts); err != nil {
+		return err
+	}
+
+	u2 := MustU128FromBigEndian(u1bts)
+	if !u1.Equal(u2) {
+		return fmt.Errorf("binbe: u128(%s) != u128(%s)", u1.String(), u2.String())
+	}
+	return nil
+}
+
+func (f fuzzU128) BinLE() error {
+	b1 := f.source.BigU128()
+	u1 := accU128FromBigInt(b1)
+
+	b1bts := make([]byte, 16)
+	b1.FillBytes(b1bts)
+
+	// big.Int writes big endian; reverse the slice:
+	for i, j := 0, len(b1bts)-1; i < j; i, j = i+1, j-1 {
+		b1bts[i], b1bts[j] = b1bts[j], b1bts[i]
+	}
+
+	u1bts := make([]byte, 16)
+	u1.PutLittleEndian(u1bts)
+
+	if err := checkEqualBytes("binle", b1bts, u1bts); err != nil {
+		return err
+	}
+
+	u2 := MustU128FromLittleEndian(u1bts)
+	if !u1.Equal(u2) {
+		return fmt.Errorf("binbe: u128(%s) != u128(%s)", u1.String(), u2.String())
+	}
+	return nil
+}
+
 func (f fuzzU128) AsFloat64() error {
 	b1 := f.source.BigU128()
 	u1 := accU128FromBigInt(b1)
@@ -1307,6 +1374,16 @@ func (f fuzzI128) Neg() error {
 
 	ru := u1.Neg()
 	return checkEqualI128("neg", ru, rb)
+}
+
+func (f fuzzI128) BinBE() error {
+	// Nothing to do
+	return nil
+}
+
+func (f fuzzI128) BinLE() error {
+	// Nothing to do
+	return nil
 }
 
 func (f fuzzI128) String() error {

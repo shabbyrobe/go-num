@@ -1015,3 +1015,41 @@ func (u *U128) UnmarshalJSON(bts []byte) (err error) {
 	*u = v
 	return nil
 }
+
+// Put big-endian encoded bytes representing this U128 into byte slice b.
+// len(b) must be >= 16.
+func (u U128) PutBigEndian(b []byte) {
+	_ = b[15] // BCE
+	b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7] = byte(u.hi>>56), byte(u.hi>>48), byte(u.hi>>40), byte(u.hi>>32), byte(u.hi>>24), byte(u.hi>>16), byte(u.hi>>8), byte(u.hi)
+	b[8], b[9], b[10], b[11], b[12], b[13], b[14], b[15] = byte(u.lo>>56), byte(u.lo>>48), byte(u.lo>>40), byte(u.lo>>32), byte(u.lo>>24), byte(u.lo>>16), byte(u.lo>>8), byte(u.lo)
+}
+
+// Decode 16 bytes as a big-endian U128. Panics if len(b) < 16.
+func MustU128FromBigEndian(b []byte) U128 {
+	_ = b[15] // BCE
+	return U128{
+		lo: uint64(b[15]) | uint64(b[14])<<8 | uint64(b[13])<<16 | uint64(b[12])<<24 |
+			uint64(b[11])<<32 | uint64(b[10])<<40 | uint64(b[9])<<48 | uint64(b[8])<<56,
+		hi: uint64(b[7]) | uint64(b[6])<<8 | uint64(b[5])<<16 | uint64(b[4])<<24 |
+			uint64(b[3])<<32 | uint64(b[2])<<40 | uint64(b[1])<<48 | uint64(b[0])<<56,
+	}
+}
+
+// Put little-endian encoded bytes representing this U128 into byte slice b.
+// len(b) must be >= 16.
+func (u U128) PutLittleEndian(b []byte) {
+	_ = b[15] // BCE
+	b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7] = byte(u.lo), byte(u.lo>>8), byte(u.lo>>16), byte(u.lo>>24), byte(u.lo>>32), byte(u.lo>>40), byte(u.lo>>48), byte(u.lo>>56)
+	b[8], b[9], b[10], b[11], b[12], b[13], b[14], b[15] = byte(u.hi), byte(u.hi>>8), byte(u.hi>>16), byte(u.hi>>24), byte(u.hi>>32), byte(u.hi>>40), byte(u.hi>>48), byte(u.hi>>56)
+}
+
+// Decode 16 bytes as a little-endian U128. Panics if len(b) < 16.
+func MustU128FromLittleEndian(b []byte) U128 {
+	_ = b[15] // BCE
+	return U128{
+		lo: uint64(b[0]) | uint64(b[1])<<8 | uint64(b[2])<<16 | uint64(b[3])<<24 |
+			uint64(b[4])<<32 | uint64(b[5])<<40 | uint64(b[6])<<48 | uint64(b[7])<<56,
+		hi: uint64(b[8]) | uint64(b[9])<<8 | uint64(b[10])<<16 | uint64(b[11])<<24 |
+			uint64(b[12])<<32 | uint64(b[13])<<40 | uint64(b[14])<<48 | uint64(b[15])<<56,
+	}
+}
