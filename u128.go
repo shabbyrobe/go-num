@@ -725,6 +725,14 @@ func (u U128) Rem64(by uint64) (r U128) {
 	return r
 }
 
+func (u U128) Reverse() U128 {
+	return U128{hi: bits.Reverse64(u.lo), lo: bits.Reverse64(u.hi)}
+}
+
+func (u U128) ReverseBytes() U128 {
+	return U128{hi: bits.ReverseBytes64(u.lo), lo: bits.ReverseBytes64(u.hi)}
+}
+
 func (u U128) RotateLeft(k int) U128 {
 	s := uint(k) & (127)
 	if s > 64 {

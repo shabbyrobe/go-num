@@ -561,6 +561,43 @@ func TestU128QuoRem(t *testing.T) {
 	}
 }
 
+func TestU128ReverseBytes(t *testing.T) {
+	for _, tc := range []struct {
+		u U128
+		r U128
+	}{
+		{
+			u: u128s("0x_00_11_22_33_44_55_66_77_88_99_AA_BB_CC_DD_EE_FF"),
+			r: u128s("0x_FF_EE_DD_CC_BB_AA_99_88_77_66_55_44_33_22_11_00")},
+		{
+			u: u128s("0x_00_00_00_00_00_00_00_00_11_22_33_44_55_66_77_88"),
+			r: u128s("0x_88_77_66_55_44_33_22_11_00_00_00_00_00_00_00_00")},
+	} {
+		t.Run(fmt.Sprintf("revbytes-%s=%s", tc.u, tc.r), func(t *testing.T) {
+			tt := assert.WrapTB(t)
+			ru := tc.u.ReverseBytes()
+			tt.MustEqual(tc.r.String(), ru.String(), "%s != %s", tc.r, ru)
+		})
+	}
+}
+
+func TestU128Reverse(t *testing.T) {
+	for _, tc := range []struct {
+		u U128
+		r U128
+	}{
+		{
+			u: u128s("0b_11111111_11111110_11111100_11111000_11110000_11100000_11000000_10000000_11111111_11111110_11111100_11111000_11110000_11100000_11000000_10000000"),
+			/*    */ r: u128s("0b_00000001_00000011_00000111_00001111_00011111_00111111_01111111_11111111_00000001_00000011_00000111_00001111_00011111_00111111_01111111_11111111")},
+	} {
+		t.Run(fmt.Sprintf("revbytes-%s=%s", tc.u, tc.r), func(t *testing.T) {
+			tt := assert.WrapTB(t)
+			ru := tc.u.Reverse()
+			tt.MustEqual(tc.r.String(), ru.String(), "%s != %s", tc.r, ru)
+		})
+	}
+}
+
 func TestU128RotateLeft(t *testing.T) {
 	for _, tc := range []struct {
 		u  U128
