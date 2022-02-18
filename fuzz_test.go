@@ -28,6 +28,7 @@ const (
 	fuzzAdd                fuzzOp = "add"
 	fuzzAdd64              fuzzOp = "add64"
 	fuzzAnd                fuzzOp = "and"
+	fuzzAnd64              fuzzOp = "and64"
 	fuzzAndNot             fuzzOp = "andnot"
 	fuzzAsFloat64          fuzzOp = "asfloat64"
 	fuzzBit                fuzzOp = "bit"
@@ -53,6 +54,7 @@ const (
 	fuzzNeg                fuzzOp = "neg"
 	fuzzNot                fuzzOp = "not"
 	fuzzOr                 fuzzOp = "or"
+	fuzzOr64               fuzzOp = "or64"
 	fuzzQuo                fuzzOp = "quo"
 	fuzzQuo64              fuzzOp = "quo64"
 	fuzzQuoRem             fuzzOp = "quorem"
@@ -65,6 +67,7 @@ const (
 	fuzzSub                fuzzOp = "sub"
 	fuzzSub64              fuzzOp = "sub64"
 	fuzzXor                fuzzOp = "xor"
+	fuzzXor64              fuzzOp = "xor64"
 )
 
 // These types are all enabled by default. You can instead pass them explicitly
@@ -91,6 +94,7 @@ var allFuzzOps = []fuzzOp{
 	fuzzAdd,
 	fuzzAdd64,
 	fuzzAnd,
+	fuzzAnd64,
 	fuzzAndNot,
 	fuzzAsFloat64,
 	fuzzBit,
@@ -116,6 +120,7 @@ var allFuzzOps = []fuzzOp{
 	fuzzNeg,
 	fuzzNot,
 	fuzzOr,
+	fuzzOr64,
 	fuzzQuo,
 	fuzzQuo64,
 	fuzzQuoRem,
@@ -128,6 +133,7 @@ var allFuzzOps = []fuzzOp{
 	fuzzSub,
 	fuzzSub64,
 	fuzzXor,
+	fuzzXor64,
 }
 
 // NEWOP: update this interface if a new op is added.
@@ -138,6 +144,7 @@ type fuzzOps interface {
 	Add() error
 	Add64() error
 	And() error
+	And64() error
 	AndNot() error
 	AsFloat64() error
 	Bit() error
@@ -163,6 +170,7 @@ type fuzzOps interface {
 	Neg() error
 	Not() error
 	Or() error
+	Or64() error
 	Quo() error
 	Quo64() error
 	QuoRem() error
@@ -175,6 +183,7 @@ type fuzzOps interface {
 	Sub() error
 	Sub64() error
 	Xor() error
+	Xor64() error
 }
 
 func checkEqualInt(u int, b int) error {
@@ -278,6 +287,8 @@ func TestFuzz(t *testing.T) {
 					err = fuzzImpl.Add64()
 				case fuzzAnd:
 					err = fuzzImpl.And()
+				case fuzzAnd64:
+					err = fuzzImpl.And64()
 				case fuzzAndNot:
 					err = fuzzImpl.AndNot()
 				case fuzzAsFloat64:
@@ -328,6 +339,8 @@ func TestFuzz(t *testing.T) {
 					err = fuzzImpl.Not()
 				case fuzzOr:
 					err = fuzzImpl.Or()
+				case fuzzOr64:
+					err = fuzzImpl.Or64()
 				case fuzzQuo:
 					err = fuzzImpl.Quo()
 				case fuzzQuo64:
@@ -352,6 +365,8 @@ func TestFuzz(t *testing.T) {
 					err = fuzzImpl.Sub64()
 				case fuzzXor:
 					err = fuzzImpl.Xor()
+				case fuzzXor64:
+					err = fuzzImpl.Xor64()
 				default:
 					panic(fmt.Errorf("unsupported op %q", op))
 				}
@@ -427,18 +442,18 @@ func (op fuzzOp) Print(operands ...*big.Int) string {
 		return fmt.Sprintf("|%d|", operands[0])
 
 	case fuzzAdd, fuzzAdd64,
-		fuzzAnd,
+		fuzzAnd, fuzzAnd64,
 		fuzzAndNot,
 		fuzzLessOrEqualTo, fuzzLessOrEqualTo64,
 		fuzzLessThan, fuzzLessThan64,
 		fuzzLsh,
 		fuzzMul, fuzzMul64,
-		fuzzOr,
+		fuzzOr, fuzzOr64,
 		fuzzQuo, fuzzQuo64,
 		fuzzQuoRem, fuzzQuoRem64,
 		fuzzRem, fuzzRem64,
 		fuzzRsh,
-		fuzzXor,
+		fuzzXor, fuzzXor64,
 		fuzzCmp,
 		fuzzEqual,
 		fuzzGreaterOrEqualTo, fuzzGreaterOrEqualTo64,
@@ -461,7 +476,7 @@ func (op fuzzOp) String() string {
 		return "|x|"
 	case fuzzAdd, fuzzAdd64:
 		return "+"
-	case fuzzAnd:
+	case fuzzAnd, fuzzAnd64:
 		return "&"
 	case fuzzAndNot:
 		return "&^"
@@ -513,7 +528,7 @@ func (op fuzzOp) String() string {
 		return "string()"
 	case fuzzSub, fuzzSub64:
 		return "-"
-	case fuzzXor:
+	case fuzzXor, fuzzXor64:
 		return "^"
 	default:
 		return string(op)
@@ -772,6 +787,14 @@ func (f fuzzU128) And() error {
 	return checkEqualU128("and", ru, rb)
 }
 
+func (f fuzzU128) And64() error {
+	b1, b2 := f.source.BigU128And64()
+	u1, u2 := accU128FromBigInt(b1), accU64FromBigInt(b2)
+	rb := new(big.Int).And(b1, b2)
+	ru := u1.And64(u2)
+	return checkEqualU128("and64", ru, rb)
+}
+
 func (f fuzzU128) AndNot() error {
 	b1, b2 := f.source.BigU128x2()
 	u1, u2 := accU128FromBigInt(b1), accU128FromBigInt(b2)
@@ -788,11 +811,27 @@ func (f fuzzU128) Or() error {
 	return checkEqualU128("or", ru, rb)
 }
 
+func (f fuzzU128) Or64() error {
+	b1, b2 := f.source.BigU128And64()
+	u1, u2 := accU128FromBigInt(b1), accU64FromBigInt(b2)
+	rb := new(big.Int).Or(b1, b2)
+	ru := u1.Or64(u2)
+	return checkEqualU128("or", ru, rb)
+}
+
 func (f fuzzU128) Xor() error {
 	b1, b2 := f.source.BigU128x2()
 	u1, u2 := accU128FromBigInt(b1), accU128FromBigInt(b2)
 	rb := new(big.Int).Xor(b1, b2)
 	ru := u1.Xor(u2)
+	return checkEqualU128("xor", ru, rb)
+}
+
+func (f fuzzU128) Xor64() error {
+	b1, b2 := f.source.BigU128And64()
+	u1, u2 := accU128FromBigInt(b1), accU64FromBigInt(b2)
+	rb := new(big.Int).Xor(b1, b2)
+	ru := u1.Xor64(u2)
 	return checkEqualU128("xor", ru, rb)
 }
 
@@ -1221,16 +1260,20 @@ func (f fuzzI128) FromFloat64() error {
 }
 
 // Bitwise operations on I128 are not supported:
-func (f fuzzI128) And() error    { return nil }
-func (f fuzzI128) AndNot() error { return nil }
-func (f fuzzI128) Or() error     { return nil }
-func (f fuzzI128) Xor() error    { return nil }
-func (f fuzzI128) Lsh() error    { return nil }
-func (f fuzzI128) Rsh() error    { return nil }
-func (f fuzzI128) SetBit() error { return nil }
-func (f fuzzI128) Bit() error    { return nil }
-func (f fuzzI128) BitLen() error { return nil }
-func (f fuzzI128) Not() error    { return nil }
+func (f fuzzI128) And() error        { return nil }
+func (f fuzzI128) And64() error      { return nil }
+func (f fuzzI128) AndNot() error     { return nil }
+func (f fuzzI128) Or() error         { return nil }
+func (f fuzzI128) Or64() error       { return nil }
+func (f fuzzI128) Xor() error        { return nil }
+func (f fuzzI128) Xor64() error      { return nil }
+func (f fuzzI128) Lsh() error        { return nil }
+func (f fuzzI128) Rsh() error        { return nil }
+func (f fuzzI128) SetBit() error     { return nil }
+func (f fuzzI128) Bit() error        { return nil }
+func (f fuzzI128) BitLen() error     { return nil }
+func (f fuzzI128) Not() error        { return nil }
+func (f fuzzI128) RotateLeft() error { return nil }
 
 func (f fuzzI128) Neg() error {
 	b1 := f.source.BigI128()
@@ -1352,7 +1395,9 @@ type bigU128AndBitSizeGen struct {
 }
 
 func (gen bigU128AndBitSizeGen) Values(r *rando) (v *big.Int, shift uint) {
-	return gen.u128.Value(r), gen.shift
+	val := gen.u128.Value(r)
+	r.operands = append(r.operands, val)
+	return val, gen.shift
 }
 
 type bigU128AndBitSizeAndBitValueGen struct {
