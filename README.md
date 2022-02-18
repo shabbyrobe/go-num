@@ -7,7 +7,9 @@ num: 128-bit signed and unsigned integers for Go
 Fastish `int128` (`num.I128`) and `uint128` (`num.U128`) 128-bit integer types
 for Go, providing the majority of methods found in `big.Int`.
 
-`num` requires Go 1.12 or greater.
+**WARNING**: Function execution times in this library _almost always_ depend on the
+inputs. This library is inappropriate for use in any domain where it is important
+that the execution time does not reveal details about the inputs used.
 
 `I128` is a signed "two's complement" implementation that should behave the
 same way on overflow as `int64`.
@@ -17,17 +19,21 @@ new value rather than mutating the existing one.
 
 Simple usage:
 
-    a := num.U128From64(1234)
-    b := num.U128From64(5678)
-    b := a.Add(a)
-    fmt.Printf("%x", x)
+```go
+a := num.U128From64(1234)
+b := num.U128From64(5678)
+b := a.Add(a)
+fmt.Printf("%x", x)
+```
 
 Most operations that operate on 2 128-bit numbers have a variant that accepts
 a 64-bit number:
 
-    a := num.U128From64(1234)
-    b := a.Add64(5678)
-    fmt.Printf("%x", x)
+```go
+a := num.U128From64(1234)
+b := a.Add64(5678)
+fmt.Printf("%x", x)
+```
 
 Performance on x86-64/amd64 architectures is the focus. Performance
 improvements for other architectures will only be made if they are done without
@@ -36,8 +42,7 @@ concern than raw performance, but where direct readability is sacrificed it
 should be exchanged for comments. Anything insufficiently explained is a bug.
 
 
-Testing
--------
+## Testing
 
 **DISCLAIMER**: I have put a significant amount of effort into testing this
 library and the coverage is very broad and very deep. I have not found much in
@@ -67,8 +72,7 @@ Unless there is a flaw in the fuzzer itself, I believe it has picked all the
 low hanging fruit, and quite a bit of high-hanging fruit too.
 
 
-Silly benchmarks game
----------------------
+## Silly benchmarks game
 
 Here are some hopelessly artificial comparsions between U128, uint64 and big.Int.
 I128 is typically a bit slower than U128 but both are quite adequate for common
@@ -111,8 +115,7 @@ to recycle memory and is significantly faster:
     BenchmarkU128IntoBigInt/0,fedcba98-8             100000000   13.2 ns/op
 
 
-Credit Where Credit is Due
---------------------------
+## Credit Where Credit is Due
 
 This is a really tricky one; the provenance of a lot of the trickier code (the
 math for which is far beyond my potato brain) is difficult to determine. A lot
