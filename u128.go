@@ -283,7 +283,7 @@ func (u U128) AsI128() I128 {
 	return I128{lo: u.lo, hi: u.hi}
 }
 
-// IsI128 reports wehether i can be represented in an I128.
+// IsI128 reports whether i can be represented in an I128.
 func (u U128) IsI128() bool {
 	return u.hi&signBit == 0
 }
@@ -723,6 +723,24 @@ func (u U128) Rem64(by uint64) (r U128) {
 		_, r.lo = bits.Div64(r.lo, u.lo, by)
 	}
 	return r
+}
+
+func (u U128) RotateLeft(k int) U128 {
+	s := uint(k) & (127)
+	if s > 64 {
+		s = 128 - s
+		l := 64 - s
+		return U128{
+			hi: u.hi>>s | u.lo<<l,
+			lo: u.lo>>s | u.hi<<l,
+		}
+	} else {
+		l := 64 - s
+		return U128{
+			hi: u.hi<<s | u.lo>>l,
+			lo: u.lo<<s | u.hi>>l,
+		}
+	}
 }
 
 func (u U128) LeadingZeros() uint {

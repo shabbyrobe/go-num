@@ -61,6 +61,7 @@ const (
 	fuzzQuoRem64           fuzzOp = "quorem64"
 	fuzzRem                fuzzOp = "rem"
 	fuzzRem64              fuzzOp = "rem64"
+	fuzzRotateLeft         fuzzOp = "rotl"
 	fuzzRsh                fuzzOp = "rsh"
 	fuzzString             fuzzOp = "string"
 	fuzzSetBit             fuzzOp = "setbit"
@@ -127,6 +128,7 @@ var allFuzzOps = []fuzzOp{
 	fuzzQuoRem64,
 	fuzzRem,
 	fuzzRem64,
+	fuzzRotateLeft,
 	fuzzRsh,
 	fuzzSetBit,
 	fuzzString,
@@ -177,6 +179,7 @@ type fuzzOps interface {
 	QuoRem64() error
 	Rem() error
 	Rem64() error
+	RotateLeft() error
 	Rsh() error
 	SetBit() error
 	String() error
@@ -353,6 +356,8 @@ func TestFuzz(t *testing.T) {
 					err = fuzzImpl.Rem()
 				case fuzzRem64:
 					err = fuzzImpl.Rem64()
+				case fuzzRotateLeft:
+					err = fuzzImpl.RotateLeft()
 				case fuzzRsh:
 					err = fuzzImpl.Rsh()
 				case fuzzSetBit:
@@ -452,6 +457,7 @@ func (op fuzzOp) Print(operands ...*big.Int) string {
 		fuzzQuo, fuzzQuo64,
 		fuzzQuoRem, fuzzQuoRem64,
 		fuzzRem, fuzzRem64,
+		fuzzRotateLeft,
 		fuzzRsh,
 		fuzzXor, fuzzXor64,
 		fuzzCmp,
@@ -520,6 +526,8 @@ func (op fuzzOp) String() string {
 		return "/%"
 	case fuzzRem, fuzzRem64:
 		return "%"
+	case fuzzRotateLeft:
+		return "rotl()"
 	case fuzzRsh:
 		return ">>"
 	case fuzzSetBit:
@@ -850,6 +858,21 @@ func (f fuzzU128) Rsh() error {
 	rb := new(big.Int).Rsh(b1, by)
 	ru := u1.Rsh(by)
 	return checkEqualU128("rsh", ru, rb)
+}
+
+func (f fuzzU128) RotateLeft() error {
+	b1, by := f.source.BigU128AndBitSize()
+	u1 := accU128FromBigInt(b1)
+	rb1 := new(big.Int).Set(b1)
+	rb1.Lsh(rb1, by)
+	rb1.And(rb1, maxBigU128)
+	rb2 := new(big.Int).Set(b1)
+	rb2.Rsh(rb2, 128-by)
+	rb1.Or(rb1, rb2)
+
+	// FIXME: this does not check RotateLeft with a negative input:
+	ru := u1.RotateLeft(int(by))
+	return checkEqualU128("rotl", ru, rb1)
 }
 
 func (f fuzzU128) Neg() error {
