@@ -117,10 +117,10 @@ to recycle memory and is significantly faster:
 
 ## Credit Where Credit is Due
 
-This is a really tricky one; the provenance of a lot of the trickier code (the
-math for which is far beyond my potato brain) is difficult to determine. A lot
-of it traces back to Hacker's Delight, which includes the following copyright
-disclaimer:
+This is a really tricky one. The basics were written by me, but the provenance some
+of the trickier code (the math for which is far beyond my potato brain) is difficult
+to determine. A lot of it traces back to Hacker's Delight, which includes the
+following copyright disclaimer:
 
     You are free to use, copy, and distribute any of the code on this web site,
     whether modified by you or not. You need not give attribution. This
@@ -144,12 +144,6 @@ Other parts, especially the division code, traces a line back to the widely
 referenced Code Project article by "Jacob F. W.", found
 [here](https://www.codeproject.com/Tips/785014/UInt-Division-Modulus). This code
 also owes a large debt to Hacker's Delight, and is licensed under a BSD license.
-
-The easier routines, the structure, the tester, etc are written by me (Blake
-Williams) as they're obvious enough for that to be possible, but if it wasn't
-for the contributions of the giants that came before, you'd be able to
-bit-shift, add, negate, convert, and swear about being unable to multiply quickly
-or divide at all.
 
 Some credit should also go to "ridiculousfish" for their
 [libdivide](https://github.com/ridiculousfish/libdivide/) library. There is
